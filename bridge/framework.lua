@@ -1,7 +1,9 @@
+---@type table
+Config = Config
 -- MLeeM's Car Megaphone - Framework Bridge
 -- Erkennt ESX, QBCore, ox_core oder Standalone und kapselt Job-/Notify-Logik
 
-local Framework, playerJob
+local Framework, playerJob, lib
 
 local function DetectFramework()
     if GetResourceState('es_extended') == 'started' then
