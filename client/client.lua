@@ -1,13 +1,83 @@
-local Config = require('config.config') -- Konfigurationsdatei laden
+--[[
+    MLeeM's Car Megaphone - Client-Hauptskript
+    Dieses Skript enthält die Hauptlogik des Megaphon-Systems.
+]]--
 
-local useSubmix = Config.UseSubmix
-local cooldown = false
-local volumeLevels = Config.VolumeLevels
-local currentVolume = Config.DefaultVolume
+-- Lokale Variablen
+local isMegaphoneActive = false
+local isOnCooldown = false
+local currentVolumeLevel = Config.DefaultVolume
 
--- Funktion: Soundeffekt abspielen
-function PlayActivationSound()
+-- Funktion: Megaphon aktivieren
+function ActivateMegaphone()
+    if isOnCooldown then
+        ShowNotification(Config.Messages.CooldownActive)
+        return
+    end
+    
+    if not CanUseCarMegaphone() then
+        -- Überprüfung fehlgeschlagen - nicht anzeigen, um Spam zu vermeiden
+        return
+    end
+    
+    -- Megaphon aktivieren
+    isMegaphoneActive = true
+    
+    -- Audio-Effekte anwenden
+    if Config.UseSubmix then
+        TriggerServerEvent("mm_megaphone:applySubmix")
+    end
+    
+    -- Reichweite erhöhen
+    exports["pma-voice"]:overrideProximityRange(Config.VolumeLevels[currentVolumeLevel], true)
+    
+    -- Aktivierungssound abspielen
     PlaySoundFrontend(-1, "CONFIRM_BEEP", "HUD_MINI_GAME_SOUNDSET", true)
+    
+    -- Visuelle Effekte aktivieren
+    if Config.UseVisualEffects then
+        local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+        if vehicle ~= 0 then
+            ActivateVisualEffects(vehicle)
+        end
+    end
+    
+    -- Optional: Benachrichtigung anzeigen
+    ShowNotification(Config.Messages.MegaphoneActivated)
+    
+    -- Cooldown setzen
+    if Config.CooldownTime > 0 then
+        isOnCooldown = true
+        Citizen.SetTimeout(Config.CooldownTime, function()
+            isOnCooldown = false
+        end)
+    end
+end
+
+-- Funktion: Megaphon deaktivieren
+function DeactivateMegaphone()
+    if not isMegaphoneActive then return end
+    
+    isMegaphoneActive = false
+    
+    -- Audio-Effekte entfernen
+    if Config.UseSubmix then
+        TriggerServerEvent("mm_megaphone:removeSubmix")
+    end
+    
+    -- Reichweite zurücksetzen
+    exports["pma-voice"]:clearProximityOverride()
+    
+    -- Visuelle Effekte deaktivieren
+    if Config.UseVisualEffects then
+        local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+        if vehicle ~= 0 then
+            DeactivateVisualEffects(vehicle)
+        end
+    end
+    
+    -- Optional: Benachrichtigung anzeigen
+    ShowNotification(Config.Messages.MegaphoneDeactivated)
 end
 
 -- Funktion: Visuelle Effekte aktivieren
@@ -17,65 +87,52 @@ function ActivateVisualEffects(vehicle)
     SetVehicleIndicatorLights(vehicle, 1, true)
 end
 
+-- Funktion: Visuelle Effekte deaktivieren
 function DeactivateVisualEffects(vehicle)
     SetVehicleLights(vehicle, 0)
     SetVehicleIndicatorLights(vehicle, 0, false)
     SetVehicleIndicatorLights(vehicle, 1, false)
 end
 
--- Megaphon aktivieren
+-- Commands registrieren
 RegisterCommand("+carMegaphone", function()
-    if cooldown then
-        print(Config.Messages.CooldownActive)
-        return
-    end
-
-    local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
-
-    if vehicle ~= 0 and CanUseCarMegaphone() then
-        cooldown = true
-        PlayActivationSound()
-        ActivateVisualEffects(vehicle)
-
-        if useSubmix then
-            TriggerServerEvent("mm_megaphone:applySubmix")
-        end
-
-        exports["pma-voice"]:overrideProximityRange(volumeLevels[currentVolume], true)
-
-        -- Cooldown-Timer
-        Citizen.SetTimeout(Config.CooldownTime, function()
-            cooldown = false
-        end)
-    end
+    ActivateMegaphone()
 end)
 
--- Megaphon deaktivieren
 RegisterCommand("-carMegaphone", function()
-    local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
-
-    if vehicle ~= 0 then
-        DeactivateVisualEffects(vehicle)
-    end
-
-    if useSubmix then
-        TriggerServerEvent("mm_megaphone:removeSubmix")
-    end
-
-    exports["pma-voice"]:clearProximityOverride()
+    DeactivateMegaphone()
 end)
 
 -- Lautstärke ändern
 RegisterCommand("setMegaphoneVolume", function(_, args)
     local level = args[1]
-    if volumeLevels[level] then
-        currentVolume = level
-        print("Megaphone volume set to: " .. level)
+    if Config.VolumeLevels[level] then
+        currentVolumeLevel = level
+        ShowNotification(Config.Messages.VolumeSet .. level)
+        
+        -- Wenn Megaphon aktiv ist, die Reichweite sofort aktualisieren
+        if isMegaphoneActive then
+            exports["pma-voice"]:overrideProximityRange(Config.VolumeLevels[currentVolumeLevel], true)
+        end
     else
-        print("Invalid volume level. Use: low, normal, high.")
+        ShowNotification(Config.Messages.InvalidVolume)
+    end
+end, false)
+
+-- Tastenbelegung registrieren
+RegisterKeyMapping('+carMegaphone', 'Car Megaphone', 'keyboard', '')
+
+-- Thread für kontinuierliche Überprüfungen (z.B. Fahrzeug verlassen)
+CreateThread(function()
+    while true do
+        if isMegaphoneActive then
+            -- Wenn Megaphon aktiv ist, aber die Bedingungen nicht mehr erfüllt sind
+            if not CanUseCarMegaphone() then
+                DeactivateMegaphone()
+            end
+            Wait(500) -- Häufigere Überprüfung, wenn aktiv
+        else
+            Wait(1000) -- Längere Pause, wenn inaktiv
+        end
     end
 end)
-
-RegisterKeyMapping('+carMegaphone', 'Car Megaphone', 'keyboard', '')

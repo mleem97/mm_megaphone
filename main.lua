@@ -1,32 +1,4 @@
-local useSubmix = true
-dofile('bridge/framework.lua')
-
-local megaphoneSubmix
-
--- CLIENT: Submix erstellen und anwenden
-function ApplyMegaphoneSubmix()
-    if not megaphoneSubmix then
-        megaphoneSubmix = CreateAudioSubmix('Megaphone')
-        SetAudioSubmixEffectRadioFx(megaphoneSubmix, 0)
-        SetAudioSubmixEffectParamInt(megaphoneSubmix, 0, `default`, 1)
-        SetAudioSubmixEffectParamFloat(megaphoneSubmix, 0, `freq_low`, 300.0)
-        SetAudioSubmixEffectParamFloat(megaphoneSubmix, 0, `freq_hi`, 3000.0)
-        SetAudioSubmixEffectParamFloat(megaphoneSubmix, 0, `rm_mod_freq`, 100.0)
-        SetAudioSubmixEffectParamFloat(megaphoneSubmix, 0, `rm_mix`, 0.5)
-        AddAudioSubmixOutput(megaphoneSubmix, 0)
-    end
-    MumbleSetAudioInputIntent("speech")
-    MumbleSetSubmixForServerId(PlayerId(), megaphoneSubmix)
-end
-
-function RemoveMegaphoneSubmix()
-    if megaphoneSubmix then
-        MumbleSetSubmixForServerId(PlayerId(), -1)
-    end
-end
-
-RegisterNetEvent("mm_megaphone:applySubmix", ApplyMegaphoneSubmix)
-RegisterNetEvent("mm_megaphone:removeSubmix", RemoveMegaphoneSubmix)
+dofile('client/submix.lua') -- Submix-Logik auslagern
 
 RegisterCommand("+carMegaphone", function()
     if CanUseCarMegaphone() then
