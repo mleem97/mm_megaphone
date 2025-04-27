@@ -14,10 +14,11 @@ Config.AllowedVehicleModels = {
 }
 
 -- Sprachreichweite (Meter)
-Config.MegaphoneRange = 50.0
+Config.MegaphoneRange = 75.0
 
 -- Taste zur Aktivierung (RegisterKeyMapping, Standard: nicht zugewiesen)
-Config.ActivationKey = ''
+Config.ActivationKey = 'NUMPAD7' -- Beispiel: 'NUMPAD7', 'F10', 'G', etc.
+-- Standardmäßig nicht zugewiesen, wenn leer gelassen   
 
 -- Audio-Submix
 Config.UseSubmix = true
