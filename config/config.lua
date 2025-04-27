@@ -1,39 +1,27 @@
---[[
-    MLeeM's Car Megaphone - Konfigurationsdatei
-    Hier können alle Einstellungen des Addons angepasst werden.
-]]--
-
+-- MLeeM's Car Megaphone - Konfigurationsdatei
 Config = {}
 
 -- Liste der erlaubten Jobs
 Config.AllowedJobs = {
-    "police",    -- Polizei
-    "fib",       -- FBI
-    "immigration", -- Einwanderungsbehörde
-    "sheriff",   -- Sheriff
-    "ranger"     -- Park Ranger
+    'police', 'fib', 'immigration', 'sheriff', 'ranger'
 }
 
--- Fahrzeugeinstellungen
-Config.AllowedVehicleClasses = {18} -- 18 = Einsatzfahrzeuge
-Config.AllowedVehicleModels = { -- Wird nur geprüft, wenn AllowedVehicleClasses leer ist
-    "police",
-    "police2",
-    "police3",
-    "police4",
-    "fbi",
-    "fbi2",
-    "sheriff",
-    "sheriff2"
+-- Fahrzeugklassen (z.B. 18 = Emergency)
+Config.AllowedVehicleClasses = {18}
+-- Fahrzeugmodelle (optional, falls du bestimmte Modelle erlauben willst)
+Config.AllowedVehicleModels = {
+    'police', 'police2', 'police3', 'police4', 'fbi', 'fbi2', 'sheriff', 'sheriff2'
 }
 
--- Megaphon-Einstellungen
-Config.MegaphoneRange = 50.0 -- Reichweite in Metern
-Config.CooldownTime = 10000 -- Cooldown in Millisekunden (10 Sekunden)
+-- Sprachreichweite (Meter)
+Config.MegaphoneRange = 50.0
 
--- Audio-Submix Einstellungen
+-- Taste zur Aktivierung (RegisterKeyMapping, Standard: nicht zugewiesen)
+Config.ActivationKey = ''
+
+-- Audio-Submix
 Config.UseSubmix = true
-Config.SubmixName = "Megaphone"
+Config.SubmixName = 'megaphone_1'
 Config.SubmixEffects = {
     default = 1,
     freq_low = 300.0,
@@ -42,24 +30,13 @@ Config.SubmixEffects = {
     rm_mix = 0.5
 }
 
--- Lautstärkeregelung
-Config.VolumeLevels = {
-    low = 30.0,
-    normal = 50.0,
-    high = 70.0
-}
-Config.DefaultVolume = "normal"
+-- Cooldown (Millisekunden)
+Config.Cooldown = 10000
 
--- Visuelle Effekte
-Config.UseVisualEffects = true
-
--- Mehrsprachigkeit
-Config.Messages = {
-    CooldownActive = "Das Megaphon ist derzeit auf Cooldown.",
-    VolumeSet = "Megaphon-Lautstärke eingestellt auf: ",
-    InvalidVolume = "Ungültige Lautstärke. Verfügbare Optionen: low, normal, high.",
-    NotAllowedVehicle = "Dieses Fahrzeug unterstützt kein Megaphon.",
-    NotAllowedJob = "Du hast keine Berechtigung, das Megaphon zu verwenden.",
-    MegaphoneActivated = "Megaphon aktiviert.",
-    MegaphoneDeactivated = "Megaphon deaktiviert."
+-- Benachrichtigungen
+Config.Notifications = {
+    megaphone_on = 'Megaphon aktiviert.',
+    megaphone_off = 'Megaphon deaktiviert.',
+    not_allowed = 'Du darfst das Megaphon nicht benutzen.',
+    cooldown = 'Megaphon ist auf Cooldown.',
 }
