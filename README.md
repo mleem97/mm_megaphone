@@ -14,30 +14,50 @@ Das Script ist kompatibel mit den gängigen FiveM-Frameworks (ESX, QBCore, ox_co
 - **Optionaler Audio-Submix:** (Konfigurierbar) Für realistischeren Megafon-Sound.
 - **Einfache Bedienung:** Aktivierung über frei belegbare Taste.
 - **Zentrale Konfiguration:** Alle Einstellungen können in der Datei `config/config.lua` angepasst werden.
+- **Cooldown-System:** Schutz vor Spam durch einstellbare Abklingzeit.
+- **Visuelle Effekte:** Fahrzeuglichter blinken beim aktiven Megafon (optional).
+- **Serverseitiges Logging:** Nutzung des Megafons wird mit Spielerinfos protokolliert.
 
 ## Installation
 
 1. **Dateien hochladen:** Das Addon in deinen `resources`-Ordner kopieren.
-2. **In der server.cfg starten:**  
+2. **In der server.cfg starten:**
    ```
    ensure mm_megaphone
    ```
-3. **Abhängigkeiten:**  
+3. **Abhängigkeiten:**
    - [pma-voice](https://github.com/AvarianKnight/pma-voice) (Voice-Plugin)
    - Eines der unterstützten Frameworks (ESX, QBCore, ox_core) oder Standalone
 
 ## Konfiguration
 
-- Alle Einstellungen, wie erlaubte Jobs, Lautstärkelevel, Cooldown-Zeit und Nachrichten, können in der Datei `config/config.lua` angepasst werden.
-- Die Jobnamen (`police`, `fib`, `immigration`) können in der Konfigurationsdatei geändert werden, falls dein Server andere Bezeichnungen nutzt.
-- Der Submix-Effekt kann über die Variable `Config.UseSubmix` aktiviert oder deaktiviert werden.
+Alle Einstellungen findest du in der Datei `config/config.lua`:
+- **Config.AllowedJobs:** Liste der erlaubten Jobs (z. B. 'police', 'fib', 'immigration')
+- **Config.AllowedVehicleClasses:** Erlaubte Fahrzeugklassen (z. B. 18 für Emergency)
+- **Config.AllowedVehicleModels:** Erlaubte Fahrzeugmodelle (Spawnnamen)
+- **Config.MegaphoneRange:** Sprachreichweite in Metern
+- **Config.ActivationKey:** Standardmäßig leer, kann im Spiel belegt werden
+- **Config.UseSubmix:** true/false für Megafon-Soundeffekt
+- **Config.SubmixName/SubmixEffects:** Name und Parameter des Submixes
+- **Config.Cooldown:** Cooldown-Zeit in Millisekunden
+- **Config.Notifications:** Anpassbare Benachrichtigungen
 
 ## Nutzung
 
 1. Steige als Polizist in ein Polizeifahrzeug.
-2. Drücke und halte die konfigurierte Taste (Standard: keine Taste zugewiesen, bitte selbst belegen).
+2. Drücke und halte die konfigurierte Taste (im Menü belegbar, z. B. F5).
 3. Deine Stimme wird nun im Umkreis von 50 Metern übertragen (und optional mit Megafon-Effekt versehen).
 4. Lasse die Taste los, um die normale Sprachreichweite wiederherzustellen.
+
+## Struktur
+
+- `config/config.lua` – zentrale Konfiguration
+- `bridge/framework.lua` – Framework-Erkennung & Wrapper
+- `client/main.lua` – Client-Hauptlogik (Tasten, Checks, Voice)
+- `client/submix.lua` – Submix-Logik (Audioeffekt)
+- `server/main.lua` – Server-Events für Submix & Logging
+- `logs/logs.lua` – Logik für serverseitiges Logging
+- `fxmanifest.lua` – Resource-Definition
 
 ## Support
 
