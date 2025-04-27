@@ -97,11 +97,11 @@ end
 -- Commands registrieren
 RegisterCommand("+carMegaphone", function()
     ActivateMegaphone()
-end)
+end, false)
 
 RegisterCommand("-carMegaphone", function()
     DeactivateMegaphone()
-end)
+end, false)
 
 -- Lautstärke ändern
 RegisterCommand("setMegaphoneVolume", function(_, args)

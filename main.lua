@@ -7,7 +7,7 @@ RegisterCommand("+carMegaphone", function()
         end
         exports["pma-voice"]:overrideProximityRange(50.0, true)
     end
-end)
+end, false)
 
 RegisterCommand("-carMegaphone", function()
     if CanUseCarMegaphone() then
@@ -16,7 +16,7 @@ RegisterCommand("-carMegaphone", function()
         end
         exports["pma-voice"]:clearProximityOverride()
     end
-end)
+end, false)
 
 RegisterKeyMapping('+carMegaphone', 'Car Megaphone', 'keyboard', '')
 

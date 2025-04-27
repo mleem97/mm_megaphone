@@ -53,10 +53,10 @@ end
 
 RegisterCommand('+carMegaphone', function()
     ActivateMegaphone()
-end)
+end, false)
 RegisterCommand('-carMegaphone', function()
     DeactivateMegaphone()
-end)
+end, false)
 RegisterKeyMapping('+carMegaphone', 'Car Megaphone', 'keyboard', Config.ActivationKey or '')
 
 -- Überwache, ob Bedingungen noch erfüllt sind
