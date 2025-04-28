@@ -1,6 +1,5 @@
 # MLeeM's Car Megaphone
 
-## Beschreibung
 This addon allows players with a police job to use a megaphone while in a vehicle. It significantly increases the voice range in the voice chat, making instructions and announcements understandable even outside the vehicle and over greater distances – ideal for traffic stops, operations, or large-scale events.
 
 I wrote it while working on a FiveM Server as a freelancer.
