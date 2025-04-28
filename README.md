@@ -1,8 +1,9 @@
 # MLeeM's Car Megaphone
 
 ## Beschreibung
+Dieses Plugin ist im Rahmen meiner Freelancing Arbeit für einen FiveM Server entstanden.
 
-Dieses Addon ermöglicht es Spielern mit einem Polizeijob, im Fahrzeug ein Megafon zu verwenden. Dadurch wird die Sprachreichweite im Voice-Chat deutlich erhöht, sodass Anweisungen und Durchsagen auch außerhalb des Fahrzeugs und über größere Entfernungen hinweg verständlich sind – ideal für Verkehrskontrollen, Einsätze oder Großlagen.
+Das Addon ermöglicht es Spielern mit einem Polizeijob, im Fahrzeug ein Megafon zu verwenden. Dadurch wird die Sprachreichweite im Voice-Chat deutlich erhöht, sodass Anweisungen und Durchsagen auch außerhalb des Fahrzeugs und über größere Entfernungen hinweg verständlich sind – ideal für Verkehrskontrollen, Einsätze oder Großlagen.
 
 Das Script ist kompatibel mit den gängigen FiveM-Frameworks (ESX, QBCore, ox_core) sowie im Standalone-Betrieb. Die Framework-Erkennung erfolgt automatisch.
 
