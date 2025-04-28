@@ -1,43 +1,91 @@
--- MLeeM's Car Megaphone - Konfigurationsdatei
 Config = {}
 
--- Liste der erlaubten Jobs
-Config.AllowedJobs = {
-    'police', 'fib', 'immigration', 'sheriff', 'ranger'
-}
+-- Erlaubte Jobs
+Config.AllowedJobs = { "police", "fib", "immigration" }
 
--- Fahrzeugklassen (z.B. 18 = Emergency)
-Config.AllowedVehicleClasses = {18}
--- Fahrzeugmodelle (optional, falls du bestimmte Modelle erlauben willst)
-Config.AllowedVehicleModels = {
-    'police', 'police2', 'police3', 'police4', 'fbi', 'fbi2', 'sheriff', 'sheriff2'
-}
+-- Fahrzeug-Einschränkung: Nur Emergency-Klasse (18) ODER bestimmte Modelle
+Config.AllowedVehicleClasses = { 18 }
+Config.AllowedVehicleModels = { "police", "police2", "fbi", "sheriff" }
 
--- Sprachreichweite (Meter)
-Config.MegaphoneRange = 75.0
+-- Sprachreichweite des Megaphons
+Config.MegaphoneRange = 50.0
 
--- Taste zur Aktivierung (RegisterKeyMapping, Standard: nicht zugewiesen)
-Config.ActivationKey = 'NUMPAD7' -- Beispiel: 'NUMPAD7', 'F10', 'G', etc.
--- Standardmäßig nicht zugewiesen, wenn leer gelassen   
+-- Standard-Keybind (kann im Spiel geändert werden)
+Config.ActivationKey = 'NUMPAD7' -- z.B. 'G' oder leer lassen für freie Belegung
 
--- Audio-Submix
+-- Submix-Effekt aktivieren
 Config.UseSubmix = true
 Config.SubmixName = 'megaphone_1'
-Config.SubmixEffects = {
-    default = 1,
-    freq_low = 300.0,
-    freq_hi = 3000.0,
-    rm_mod_freq = 100.0,
-    rm_mix = 0.5
+
+-- Sprache wählen
+Config.Locale = 'en' -- z.B. 'en' oder 'de'
+
+-- Übersetzungen
+Config.Locales = {
+    en = {
+        MegaphoneActivated = "Megaphone activated!",
+        MegaphoneDeactivated = "Megaphone deactivated.",
+        NotAllowedVehicle = "You must be in a police vehicle.",
+        NotAllowedJob = "You do not have permission to use the megaphone.",
+        CooldownActive = "Please wait before using the megaphone again."
+    },
+    de = {
+        MegaphoneActivated = "Megafon aktiviert!",
+        MegaphoneDeactivated = "Megafon deaktiviert.",
+        NotAllowedVehicle = "Du musst in einem Polizeifahrzeug sitzen.",
+        NotAllowedJob = "Du hast keine Berechtigung, das Megafon zu benutzen.",
+        CooldownActive = "Bitte warte, bevor du das Megafon erneut benutzt."
+    },
+    fr = {
+        MegaphoneActivated = "Mégaphone activé !",
+        MegaphoneDeactivated = "Mégaphone désactivé.",
+        NotAllowedVehicle = "Vous devez être dans un véhicule de police.",
+        NotAllowedJob = "Vous n'avez pas la permission d'utiliser le mégaphone.",
+        CooldownActive = "Veuillez patienter avant d'utiliser à nouveau le mégaphone."
+    },
+    es = {
+        MegaphoneActivated = "¡Megáfono activado!",
+        MegaphoneDeactivated = "Megáfono desactivado.",
+        NotAllowedVehicle = "Debes estar en un vehículo policial.",
+        NotAllowedJob = "No tienes permiso para usar el megáfono.",
+        CooldownActive = "Por favor espera antes de usar el megáfono de nuevo."
+    },
+    it = {
+        MegaphoneActivated = "Megafono attivato!",
+        MegaphoneDeactivated = "Megafono disattivato.",
+        NotAllowedVehicle = "Devi essere in un veicolo della polizia.",
+        NotAllowedJob = "Non hai il permesso di usare il megafono.",
+        CooldownActive = "Attendi prima di usare di nuovo il megafono."
+    },
+    pt = {
+        MegaphoneActivated = "Megafone ativado!",
+        MegaphoneDeactivated = "Megafone desativado.",
+        NotAllowedVehicle = "Você deve estar em um veículo policial.",
+        NotAllowedJob = "Você não tem permissão para usar o megafone.",
+        CooldownActive = "Por favor, aguarde antes de usar o megafone novamente."
+    },
+    ru = {
+        MegaphoneActivated = "Мегафон активирован!",
+        MegaphoneDeactivated = "Мегафон деактивирован.",
+        NotAllowedVehicle = "Вы должны находиться в полицейском автомобиле.",
+        NotAllowedJob = "У вас нет разрешения использовать мегафон.",
+        CooldownActive = "Пожалуйста, подождите, прежде чем снова использовать мегафон."
+    },
+    tr = {
+        MegaphoneActivated = "Megafon etkinleştirildi!",
+        MegaphoneDeactivated = "Megafon devre dışı bırakıldı.",
+        NotAllowedVehicle = "Bir polis aracında olmalısınız.",
+        NotAllowedJob = "Megafonu kullanma izniniz yok.",
+        CooldownActive = "Lütfen megafonu tekrar kullanmadan önce bekleyin."
+    },
+    pl = {
+        MegaphoneActivated = "Megafon aktywowany!",
+        MegaphoneDeactivated = "Megafon dezaktywowany.",
+        NotAllowedVehicle = "Musisz być w pojeździe policyjnym.",
+        NotAllowedJob = "Nie masz uprawnień do używania megafonu.",
+        CooldownActive = "Poczekaj przed ponownym użyciem megafonu."
+    }
 }
 
--- Cooldown (Millisekunden)
-Config.Cooldown = 10000
-
--- Benachrichtigungen
-Config.Notifications = {
-    megaphone_on = 'Megaphon aktiviert.',
-    megaphone_off = 'Megaphon deaktiviert.',
-    not_allowed = 'Du darfst das Megaphon nicht benutzen.',
-    cooldown = 'Megaphon ist auf Cooldown.',
-}
+-- Framework-Integration explizit aktivieren/deaktivieren
+Config.EnableFrameworkIntegration = true

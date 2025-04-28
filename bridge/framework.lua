@@ -97,7 +97,9 @@ function CanUseCarMegaphone()
     return IsPlayerInAllowedVehicle() and IsPlayerInAllowedJob()
 end
 
-function ShowNotification(msg)
+function ShowNotification(msgKey)
+    local locale = Config.Locale or 'en'
+    local msg = (Config.Locales and Config.Locales[locale] and Config.Locales[locale][msgKey]) or msgKey
     if Framework == 'esx' then
         ESX.ShowNotification(msg)
     elseif Framework == 'qb' then

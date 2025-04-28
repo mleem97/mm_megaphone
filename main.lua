@@ -1,5 +1,8 @@
 dofile('client/submix.lua') -- Submix-Logik auslagern
 
+-- Define and initialize useSubmix
+local useSubmix = true
+
 RegisterCommand("+carMegaphone", function()
     if CanUseCarMegaphone() then
         if useSubmix then

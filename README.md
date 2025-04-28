@@ -1,64 +1,65 @@
 # MLeeM's Car Megaphone
 
-## Beschreibung
+## Description
+This plugin was created as part of my freelancing work for a FiveM server.
 
-Dieses Addon ermöglicht es Spielern mit einem Polizeijob, im Fahrzeug ein Megafon zu verwenden. Dadurch wird die Sprachreichweite im Voice-Chat deutlich erhöht, sodass Anweisungen und Durchsagen auch außerhalb des Fahrzeugs und über größere Entfernungen hinweg verständlich sind – ideal für Verkehrskontrollen, Einsätze oder Großlagen.
+This addon allows players with a police job to use a megaphone while in a vehicle. This significantly increases the voice chat range, so instructions and announcements can be heard outside the vehicle and over greater distances – ideal for traffic stops, operations, or large-scale events.
 
-Das Script ist kompatibel mit den gängigen FiveM-Frameworks (ESX, QBCore, ox_core) sowie im Standalone-Betrieb. Die Framework-Erkennung erfolgt automatisch.
+The script is compatible with the most common FiveM frameworks (ESX, QBCore, ox_core) as well as standalone operation. Framework detection is automatic.
 
 ## Features
 
-- **Megafon-Funktion:** Erhöht die Sprachreichweite auf bis zu 50 Meter, solange die Megafon-Taste gedrückt wird.
-- **Framework-Kompatibilität:** Unterstützt ESX, QBCore, ox_core und Standalone.
-- **Job- und Fahrzeugprüfung:** Nur Spieler mit einem erlaubten Polizeijob (z. B. "police", "fib", "immigration") und in einem Polizeifahrzeug können das Megafon nutzen.
-- **Optionaler Audio-Submix:** (Konfigurierbar) Für realistischeren Megafon-Sound.
-- **Einfache Bedienung:** Aktivierung über frei belegbare Taste.
-- **Zentrale Konfiguration:** Alle Einstellungen können in der Datei `config/config.lua` angepasst werden.
-- **Cooldown-System:** Schutz vor Spam durch einstellbare Abklingzeit.
-- **Visuelle Effekte:** Fahrzeuglichter blinken beim aktiven Megafon (optional).
-- **Serverseitiges Logging:** Nutzung des Megafons wird mit Spielerinfos protokolliert.
+- **Megaphone Function:** Increases voice range up to 50 meters while the megaphone key is held down.
+- **Framework Compatibility:** Supports ESX, QBCore, ox_core, and standalone.
+- **Job and Vehicle Check:** Only players with an allowed police job (e.g., "police", "fib", "immigration") and in a police vehicle can use the megaphone.
+- **Optional Audio Submix:** (Configurable) For a more realistic megaphone sound.
+- **Easy Operation:** Activation via freely assignable key.
+- **Central Configuration:** All settings can be adjusted in the `config/config.lua` file.
+- **Cooldown System:** Protection against spam through configurable cooldown.
+- **Visual Effects:** Vehicle lights flash when the megaphone is active (optional).
+- **Server-side Logging:** Megaphone usage is logged with player info.
 
 ## Installation
 
-1. **Dateien hochladen:** Das Addon in deinen `resources`-Ordner kopieren.
-2. **In der server.cfg starten:**
-   ```
+1. **Upload files:** Copy the addon to your `resources` folder.
+2. **Start in server.cfg:**
+   ```conf
    ensure mm_megaphone
    ```
-3. **Abhängigkeiten:**
-   - [pma-voice](https://github.com/AvarianKnight/pma-voice) (Voice-Plugin)
-   - Eines der unterstützten Frameworks (ESX, QBCore, ox_core) oder Standalone
+3. **Dependencies:**
+   - [pma-voice](https://github.com/AvarianKnight/pma-voice) (voice plugin)
+   - One of the supported frameworks (ESX, QBCore, ox_core) or standalone
 
-## Konfiguration
+## Configuration
 
-Alle Einstellungen findest du in der Datei `config/config.lua`:
-- **Config.AllowedJobs:** Liste der erlaubten Jobs (z. B. 'police', 'fib', 'immigration')
-- **Config.AllowedVehicleClasses:** Erlaubte Fahrzeugklassen (z. B. 18 für Emergency)
-- **Config.AllowedVehicleModels:** Erlaubte Fahrzeugmodelle (Spawnnamen)
-- **Config.MegaphoneRange:** Sprachreichweite in Metern
-- **Config.ActivationKey:** Standardmäßig leer, kann im Spiel belegt werden
-- **Config.UseSubmix:** true/false für Megafon-Soundeffekt
-- **Config.SubmixName/SubmixEffects:** Name und Parameter des Submixes
-- **Config.Cooldown:** Cooldown-Zeit in Millisekunden
-- **Config.Notifications:** Anpassbare Benachrichtigungen
+All settings can be found in the `config/config.lua` file:
+- **Config.AllowedJobs:** List of allowed jobs (e.g., 'police', 'fib', 'immigration')
+- **Config.AllowedVehicleClasses:** Allowed vehicle classes (e.g., 18 for Emergency)
+- **Config.AllowedVehicleModels:** Allowed vehicle models (spawn names)
+- **Config.MegaphoneRange:** Voice range in meters
+- **Config.ActivationKey:** Empty by default, can be assigned in-game
+- **Config.UseSubmix:** true/false for megaphone sound effect
+- **Config.SubmixName/SubmixEffects:** Name and parameters of the submix
+- **Config.Cooldown:** Cooldown time in milliseconds
+- **Config.Notifications:** Customizable notifications
 
-## Nutzung
+## Usage
 
-1. Steige als Polizist in ein Polizeifahrzeug.
-2. Drücke und halte die konfigurierte Taste (im Menü belegbar, z. B. F5).
-3. Deine Stimme wird nun im Umkreis von 50 Metern übertragen (und optional mit Megafon-Effekt versehen).
-4. Lasse die Taste los, um die normale Sprachreichweite wiederherzustellen.
+1. Get into a police vehicle as a police officer.
+2. Press and hold the configured key (can be assigned in the menu, e.g., F5).
+3. Your voice will now be transmitted within a 50-meter radius (and optionally with a megaphone effect).
+4. Release the key to restore the normal voice range.
 
-## Struktur
+## Structure
 
-- `config/config.lua` – zentrale Konfiguration
-- `bridge/framework.lua` – Framework-Erkennung & Wrapper
-- `client/main.lua` – Client-Hauptlogik (Tasten, Checks, Voice)
-- `client/submix.lua` – Submix-Logik (Audioeffekt)
-- `server/main.lua` – Server-Events für Submix & Logging
-- `logs/logs.lua` – Logik für serverseitiges Logging
-- `fxmanifest.lua` – Resource-Definition
+- `config/config.lua` – central configuration
+- `bridge/framework.lua` – framework detection & wrappers
+- `client/main.lua` – client main logic (keys, checks, voice)
+- `client/submix.lua` – submix logic (audio effect)
+- `server/main.lua` – server events for submix & logging
+- `logs/logs.lua` – logic for server-side logging
+- `fxmanifest.lua` – resource definition
 
 ## Support
 
-Bei Fragen oder Problemen kannst du ein Issue auf GitHub eröffnen oder dich an den Entwickler wenden.
+If you have questions or issues, you can open an issue on GitHub or contact the developer.
