@@ -3,8 +3,8 @@ game 'gta5'
 lua54 'yes'
 
 author 'MLeeM'
-description 'Ein FiveM-Addon, das Spielern mit Polizeijob erlaubt, ein Megafon im Fahrzeug zu benutzen.'
-version '1.1.0'
+description 'A FiveM addon that allows players with a police job to use a megaphone in vehicles.'
+version '1.2.0'
 
 dependency 'pma-voice'
 
