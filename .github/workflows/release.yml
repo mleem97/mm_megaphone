@@ -80,33 +80,20 @@ jobs:
           
           echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
       
-      - name: Create release archive
-        id: archive
+      - name: Create archive of resource
         run: |
           ARCHIVE_NAME="mm_megaphone-${{ steps.version.outputs.version }}.tar.gz"
-          
-          tar --exclude='.git' \
-              --exclude='.github' \
-              --exclude='*.md' \
-              --transform 's,^,mm_megaphone/,' \
-              -czf "$ARCHIVE_NAME" .
-          
-          FILE_SIZE=$(du -h "$ARCHIVE_NAME" | cut -f1)
-          
-          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
-          echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
-      
-      - name: Create GitHub Release
+          tar --exclude='.git' --exclude='.github' --exclude='*.md' -czf "$ARCHIVE_NAME" .
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
-          body_path: CHANGELOG.txt
+          files: ${{ env.ARCHIVE_NAME }}
+          body: |
+            Release ${{ steps.version.outputs.version }}
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
-          files: |
-            ${{ steps.archive.outputs.archive_name }}
-            CHANGELOG.txt
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       

@@ -4,24 +4,6 @@
   },
   "yaml.schemaStore.enable": true,
   "yaml.validate": true,
-  "yaml.customTags": [
-    "!And",
-    "!If",
-    "!Not",
-    "!Equals",
-    "!Or",
-    "!FindInMap",
-    "!Base64",
-    "!Cidr",
-    "!Ref",
-    "!Sub",
-    "!GetAtt",
-    "!GetAZs",
-    "!ImportValue",
-    "!Select",
-    "!Split",
-    "!Join"
-  ],
   "files.associations": {
     "*.yml": "yaml",
     ".luacheckrc": "lua"
@@ -39,7 +21,6 @@
     "RegisterCommand",
     "RegisterNetEvent",
     "AddEventHandler",
-    "RemoveEventHandler",
     "TriggerEvent",
     "TriggerServerEvent",
     "TriggerClientEvent",
@@ -51,7 +32,6 @@
     "GetPlayerIdentifiers",
     "source",
     "GetEntityCoords",
-    "GetEntityHeading",
     "GetEntityModel",
     "IsPedInAnyVehicle",
     "GetPedInVehicleSeat",
@@ -101,9 +81,7 @@
     "RemoveMegaphoneSubmix",
     "LogMegaphoneUsage"
   ],
-  "Lua.diagnostics.disable": [
-    "lowercase-global"
-  ],
+  "Lua.diagnostics.disable": ["lowercase-global"],
   "Lua.workspace.checkThirdParty": false,
   "markdownlint.config": {
     "MD033": false,
@@ -114,11 +92,9 @@
     ".github/workflows/lua-lint.yml",
     ".github/workflows/release.yml"
   ],
-    "problems.decorations.enabled": true,
-  "yaml.validate": true,
-  "github-actions.diagnostics.disabled": [
-    "action-not-found",
-    "context-access-invalid"
-  ],
-  "github-actions.offline-mode": false  
+  "github-actions.offline-mode": false,
+  "problems.showCurrentInStatus": true,
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  }
 }
