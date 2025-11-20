@@ -2,7 +2,12 @@ name: Lua Lint
 
 on:
   push:
-    branches: [main]
+    branches:
+      - '*fix*'
+      - '*patch*'
+      - '*update*'
+      - '*upgrade*'
+      - '*hotfix*'
     paths:
       - '**.lua'
       - '.luacheckrc'
