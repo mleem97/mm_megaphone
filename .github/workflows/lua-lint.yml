@@ -2,13 +2,13 @@ name: Lua Lint
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.lua'
       - '.luacheckrc'
       - '.github/workflows/lua-lint.yml'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.lua'
       - '.luacheckrc'
@@ -42,11 +42,11 @@ jobs:
           set -e
           
           if command -v luacheck >/dev/null 2>&1; then
-            echo "✅ luacheck already installed"
+            echo "luacheck already installed"
             exit 0
           fi
           
-          echo "📦 Installing luacheck..."
+          echo "Installing luacheck..."
           
           if command -v apt-get >/dev/null 2>&1; then
             sudo apt-get update -qq
@@ -56,7 +56,7 @@ jobs:
           elif command -v dnf >/dev/null 2>&1; then
             sudo dnf install -y -q lua luarocks
           else
-            echo "❌ No package manager found"
+            echo "No package manager found"
             exit 1
           fi
           
@@ -65,27 +65,35 @@ jobs:
       - name: Run luacheck
         id: luacheck
         run: |
-          echo "🔍 Running luacheck in ${{ env.ENVIRONMENT }} environment..."
-          echo "=====================================" > luacheck-report.txt
-          echo "🔍 LUACHECK REPORT - ${{ env.ENVIRONMENT }}" >> luacheck-report.txt
-          echo "=====================================" >> luacheck-report.txt
-          echo "" >> luacheck-report.txt
-          echo "📅 Date: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> luacheck-report.txt
-          echo "📦 Repository: ${{ github.repository }}" >> luacheck-report.txt
-          echo "🌿 Branch: ${{ github.ref_name }}" >> luacheck-report.txt
-          echo "📝 Commit: ${GITHUB_SHA:0:7}" >> luacheck-report.txt
-          echo "👤 Author: ${{ github.actor }}" >> luacheck-report.txt
-          echo "" >> luacheck-report.txt
-          echo "=====================================" >> luacheck-report.txt
-          echo "" >> luacheck-report.txt
+          echo "Running luacheck in ${{ env.ENVIRONMENT }} environment..."
           
+          # Create report header
+          {
+            echo "====================================="
+            echo "LUACHECK REPORT - ${{ env.ENVIRONMENT }}"
+            echo "====================================="
+            echo ""
+            echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Repository: ${{ github.repository }}"
+            echo "Branch: ${{ github.ref_name }}"
+            echo "Commit: ${GITHUB_SHA:0:7}"
+            echo "Author: ${{ github.actor }}"
+            echo ""
+            echo "====================================="
+            echo ""
+          } > luacheck-report.txt
+          
+          # Run luacheck
           luacheck . --formatter plain --codes --ranges | tee -a luacheck-report.txt
           EXIT_CODE=${PIPESTATUS[0]}
           
-          echo "" >> luacheck-report.txt
-          echo "=====================================" >> luacheck-report.txt
-          echo "Exit Code: $EXIT_CODE" >> luacheck-report.txt
-          echo "=====================================" >> luacheck-report.txt
+          # Add footer
+          {
+            echo ""
+            echo "====================================="
+            echo "Exit Code: $EXIT_CODE"
+            echo "====================================="
+          } >> luacheck-report.txt
           
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           exit $EXIT_CODE
@@ -116,22 +124,8 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Create summary for embed
-          SUMMARY=$(cat << EOF
-          ✅ Alle Lua-Dateien erfolgreich geprüft
-          
-          📊 Statistiken:
-          • Dateien geprüft: ${{ steps.parse.outputs.files }}
-          • Warnungen: ${{ steps.parse.outputs.warnings }}
-          • Fehler: ${{ steps.parse.outputs.errors }}
-          
-          🔗 Commit: ${GITHUB_SHA:0:7}
-          👤 Author: ${{ github.actor }}
-          EOF
-          )
-          
           curl -F "payload_json={
-            \"username\": \"🚀 MM Megaphone CI/CD\",
+            \"username\": \"MM Megaphone CI/CD\",
             \"avatar_url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/lua/lua-original.svg\",
             \"embeds\": [{
               \"title\": \"✅ Lua Lint erfolgreich\",
@@ -157,28 +151,9 @@ jobs:
                   \"name\": \"🌍 Environment\",
                   \"value\": \"\`${{ env.ENVIRONMENT }}\`\",
                   \"inline\": true
-                },
-                {
-                  \"name\": \"📝 Commit\",
-                  \"value\": \"[\\\`${GITHUB_SHA:0:7}\\\`](${{ github.event.head_commit.url }})\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"👤 Author\",
-                  \"value\": \"${{ github.actor }}\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"🔗 Workflow\",
-                  \"value\": \"[View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
-                  \"inline\": true
                 }
               ],
-              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
-              \"footer\": {
-                \"text\": \"GitHub Actions • ${{ env.ENVIRONMENT }}\",
-                \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
-              }
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
             }]
           }" \
           -F "files[0]=@luacheck-report.txt" \
@@ -189,70 +164,32 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Create error preview (first 20 lines of actual errors)
-          ERROR_PREVIEW=$(grep -E "(warning|error)" luacheck-report.txt | head -20 || echo "Keine Details verfügbar")
-          ERROR_PREVIEW_ESCAPED=$(echo "$ERROR_PREVIEW" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}')
-          
           curl -F "payload_json={
-            \"username\": \"🚀 MM Megaphone CI/CD\",
+            \"username\": \"MM Megaphone CI/CD\",
             \"avatar_url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/lua/lua-original.svg\",
             \"embeds\": [{
               \"title\": \"❌ Lua Lint fehlgeschlagen\",
-              \"description\": \"**⚠️ ACHTUNG:** Lint-Fehler im Production Branch gefunden!\",
+              \"description\": \"**⚠️ ACHTUNG:** Lint-Fehler gefunden!\",
               \"color\": 15158332,
               \"fields\": [
                 {
                   \"name\": \"📊 Fehlerübersicht\",
-                  \"value\": \"📁 **${{ steps.parse.outputs.files }}** Dateien\\n⚠️ **${{ steps.parse.outputs.warnings }}** Warnungen\\n❌ **${{ steps.parse.outputs.errors }}** Fehler\\n📝 **${{ steps.parse.outputs.total }}** Issues gesamt\",
+                  \"value\": \"📁 **${{ steps.parse.outputs.files }}** Dateien\\n⚠️ **${{ steps.parse.outputs.warnings }}** Warnungen\\n❌ **${{ steps.parse.outputs.errors }}** Fehler\",
                   \"inline\": false
                 },
                 {
-                  \"name\": \"🏷️ Repository\",
-                  \"value\": \"\`${{ github.repository }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"🌿 Branch\",
-                  \"value\": \"\`${{ github.ref_name }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"🌍 Environment\",
-                  \"value\": \"\`${{ env.ENVIRONMENT }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"📝 Commit\",
-                  \"value\": \"[\\\`${GITHUB_SHA:0:7}\\\`](${{ github.event.head_commit.url }})\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"👤 Author\",
-                  \"value\": \"${{ github.actor }}\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"🔗 Actions\",
-                  \"value\": \"[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"💡 Next Steps\",
-                  \"value\": \"1️⃣ Download & review report\\n2️⃣ Fix errors: \\\`luacheck .\\\`\\n3️⃣ Push fixes to re-run\",
+                  \"name\": \"🔗 Logs\",
+                  \"value\": \"[View Full Log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
                   \"inline\": false
                 }
               ],
-              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
-              \"footer\": {
-                \"text\": \"GitHub Actions • ${{ env.ENVIRONMENT }} • Action Required\",
-                \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
-              }
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
             }]
           }" \
           -F "files[0]=@luacheck-report.txt" \
           "$DISCORD_WEBHOOK"
       
-      - name: Upload GitHub artifact
+      - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
