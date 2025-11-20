@@ -1,32 +1,6 @@
 {
-  "yaml.schemas": {
-    "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml"
-  },
-  "yaml.schemaStore.enable": true,
-  "yaml.validate": true,
-  "yaml.customTags": [
-    "!And",
-    "!If",
-    "!Not",
-    "!Equals",
-    "!Or",
-    "!FindInMap",
-    "!Base64",
-    "!Cidr",
-    "!Ref",
-    "!Sub",
-    "!GetAtt",
-    "!GetAZs",
-    "!ImportValue",
-    "!Select",
-    "!Split",
-    "!Join"
-  ],
-  "files.associations": {
-    "*.yml": "yaml",
-    ".luacheckrc": "lua"
-  },
-  "Lua.diagnostics.globals": [
+  "runtime.version": "Lua 5.3",
+  "diagnostics.globals": [
     "Citizen",
     "CreateThread",
     "Wait",
@@ -53,6 +27,7 @@
     "GetEntityCoords",
     "GetEntityHeading",
     "GetEntityModel",
+    "NetworkGetNetworkIdFromEntity",
     "IsPedInAnyVehicle",
     "GetPedInVehicleSeat",
     "GetVehiclePedIsIn",
@@ -71,6 +46,8 @@
     "AddAudioSubmixOutput",
     "MumbleSetAudioInputIntent",
     "MumbleSetSubmixForServerId",
+    "MumbleSetAudioInputDistance",
+    "MumbleSetTalkerProximity",
     "exports",
     "ESX",
     "QBCore",
@@ -101,18 +78,11 @@
     "RemoveMegaphoneSubmix",
     "LogMegaphoneUsage"
   ],
-  "Lua.diagnostics.disable": [
-    "lowercase-global"
+  "diagnostics.disable": [
+    "lowercase-global",
+    "undefined-field"
   ],
-  "Lua.workspace.checkThirdParty": false,
-  "markdownlint.config": {
-    "MD033": false,
-    "MD036": false,
-    "MD040": false
-  },
-  "github-actions.workflows.pinned.workflows": [
-    ".github/workflows/lua-lint.yml",
-    ".github/workflows/release.yml"
-  ],
-  "github-actions.offline-mode": false  
+  "workspace.checkThirdParty": false,
+  "workspace.library": [],
+  "completion.enable": true
 }

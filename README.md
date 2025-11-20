@@ -3,7 +3,7 @@
 [![Lua Lint](https://github.com/mleem97/mm_megaphone/actions/workflows/lua-lint.yml/badge.svg)](https://github.com/mleem97/mm_megaphone/actions/workflows/lua-lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FiveM](https://img.shields.io/badge/FiveM-Compatible-blue.svg)](https://fivem.net/)
-[![Version](https://img.shields.io/badge/version-1.3.1b-green.svg)](https://github.com/mleem97/mm_megaphone/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0c-green.svg)](https://github.com/mleem97/mm_megaphone/releases)
 
 A powerful and optimized FiveM addon that enables police officers to use an in-vehicle megaphone system. Perfect for traffic stops, operations, and large-scale events with realistic audio effects and extensive customization options.
 
@@ -33,7 +33,7 @@ A powerful and optimized FiveM addon that enables police officers to use an in-v
 
 ### Step 1: Download
 
-```
+```bash
 # Clone repository
 git clone https://github.com/mleem97/mm_megaphone.git
 
@@ -46,10 +46,10 @@ git clone https://github.com/mleem97/mm_megaphone.git
 1. Copy the `mm_megaphone` folder to your server's `resources` directory
 2. Add to your `server.cfg`:
 
-   ```
-   ensure pma-voice
-   ensure mm_megaphone
-   ```
+    ```text
+    ensure pma-voice
+    ensure mm_megaphone
+    ```
 
 ### Step 3: Configure
 
@@ -111,7 +111,7 @@ Config.Locale = 'en'  -- Available: en, de, fr, es, it, pt, ru, tr, pl
 
 ## 🏗️ Project Structure
 
-```
+```text
 mm_megaphone/
 ├── 📁 config/
 │   └── config.lua          # Main configuration file
@@ -244,6 +244,7 @@ If you find this resource helpful, please consider:
 
 ---
 
+<!-- markdownlint-disable MD033 -->
 <div align="center">
 
 **Made with ❤️ for the FiveM Community**
@@ -251,3 +252,4 @@ If you find this resource helpful, please consider:
 [Report Bug](https://github.com/mleem97/mm_megaphone/issues) · [Request Feature](https://github.com/mleem97/mm_megaphone/issues) · [Documentation](https://github.com/mleem97/mm_megaphone/wiki)
 
 </div>
+<!-- markdownlint-enable MD033 -->
