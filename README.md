@@ -3,7 +3,7 @@
 [![Lua Lint](https://github.com/mleem97/mm_megaphone/actions/workflows/lua-lint.yml/badge.svg)](https://github.com/mleem97/mm_megaphone/actions/workflows/lua-lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FiveM](https://img.shields.io/badge/FiveM-Compatible-blue.svg)](https://fivem.net/)
-[![Version](https://img.shields.io/badge/version-1.3.0f-green.svg)](https://github.com/mleem97/mm_megaphone/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0g-green.svg)](https://github.com/mleem97/mm_megaphone/releases)
 
 A powerful and optimized FiveM addon that enables police officers to use an in-vehicle megaphone system. Perfect for traffic stops, operations, and large-scale events with realistic audio effects and extensive customization options.
 
@@ -201,7 +201,7 @@ Contributions are welcome! Please:
 
 ## 📝 Changelog
 
-### Version 1.3.0 (2025-11)
+### Version 1.3.0g (2025-11)
 
 - ✨ Enhanced pma-voice v7.x compatibility
 - 🔧 Performance optimizations
