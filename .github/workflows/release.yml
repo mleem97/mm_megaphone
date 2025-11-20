@@ -9,31 +9,45 @@ on:
 permissions:
   contents: write
 
+env:
+  ENVIRONMENT: PROD
+
 jobs:
-  # 1. Abhängigkeit: Linting durchführen
+  # 1. Abhängigkeit: Linting durchführen (Reusable Workflow)
   prerequisite-lint:
-    uses: ./.github/workflows/lua-lint-optimized.yml
+    uses: ./.github/workflows/lua-lint.yml
     secrets: inherit
 
-  # 2. Abhängigkeit: Tests durchführen
+  # 2. Abhängigkeit: Tests durchführen (Reusable Workflow)
   prerequisite-test:
-    uses: ./.github/workflows/test-release-workflow.yml
+    uses: ./.github/workflows/test-release.yml
     secrets: inherit
 
-  # 3. Eigentlicher Release (Wartet auf 1 und 2)
+  # 3. Eigentlicher Release (Wartet auf Lint und Test)
   release:
     needs: [prerequisite-lint, prerequisite-test]
     runs-on: 'lunexor'
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Erstelle Release-Archiv mit FiveM Resource (exkludiere .git und .github)
       - name: Create archive of resource
         run: |
           ARCHIVE_NAME="mm_megaphone-${{ github.ref_name }}.tar.gz"
+          
+          echo "Creating release archive: $ARCHIVE_NAME"
           tar --exclude='.git' --exclude='.github' -czf "$ARCHIVE_NAME" .
+          
+          # Zeige Archiv-Details
+          echo "Archive created successfully:"
+          ls -lh "$ARCHIVE_NAME"
+          
+          # Speichere Archivname für spätere Steps
           echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
 
+      # Erstelle GitHub Release mit Archiv als Asset
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2.4.2
@@ -46,6 +60,7 @@ jobs:
 
       # --- Notifications ---
 
+      # Discord Notification: Erstelle Payload als Datei (verhindert Escaping-Probleme)
       - name: Prepare Discord Payload
         if: always()
         id: discord_payload
@@ -53,18 +68,23 @@ jobs:
           STATUS="${{ job.status }}"
           RELEASE_URL="${{ steps.create_release.outputs.url }}"
           
+          # Setze Farbe, Titel und Beschreibung basierend auf Status
           if [ "$STATUS" == "success" ]; then
-            COLOR=3066993 # Green
+            COLOR=3066993  # Grün
             TITLE="🚀 Release Veröffentlicht: ${{ github.ref_name }}"
             DESC="Qualitätssicherung bestanden (Lint & Test). Release erfolgreich erstellt."
-            if [ -z "$RELEASE_URL" ]; then RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"; fi
+            # Fallback zur Releases-Seite, falls URL nicht verfügbar
+            if [ -z "$RELEASE_URL" ]; then 
+              RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"
+            fi
           else
-            COLOR=15158332 # Red
+            COLOR=15158332  # Rot
             TITLE="❌ Release fehlgeschlagen"
             DESC="**⚠️ Fehler:** Der Release-Prozess ist fehlgeschlagen (siehe vorherige Schritte)."
             RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           
+          # Erstelle JSON Payload in temporärer Datei
           cat <<EOF > payload.json
           {
             "username": "MM Megaphone CI/CD",
@@ -74,8 +94,8 @@ jobs:
               "description": "$DESC",
               "color": $COLOR,
               "fields": [
-                { "name": "📦 Archiv", "value": "\`${{ env.ARCHIVE_NAME }}\`", "inline": true },
-                { "name": "🏷️ Version", "value": "\`${{ github.ref_name }}\`", "inline": true },
+                { "name": "📦 Archiv", "value": "\\`${{ env.ARCHIVE_NAME }}\\`", "inline": true },
+                { "name": "🏷️ Version", "value": "\\`${{ github.ref_name }}\\`", "inline": true },
                 { "name": "🔗 Link", "value": "[Zum Release]($RELEASE_URL)", "inline": true }
               ],
               "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
@@ -88,6 +108,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # Sende Payload aus Datei (verhindert Escaping-Probleme)
           curl -s -F "payload_json=$(cat payload.json)" "$DISCORD_WEBHOOK"
 
       - name: Notify Telegram
@@ -103,4 +124,4 @@ jobs:
             *Version:* `${{ github.ref_name }}`
             *Status:* Lint ✅ | Test ✅ | Release ${{ job.status == 'success' && '✅' || '❌' }}
             
-            [🔗 Zum Release](${{ steps.create_release.outputs.url || github.server_url }}/${{ github.repository }}/releases)
+            [🔗 Zum Release](${{ steps.create_release.outputs.url || format('{0}/{1}/releases', github.server_url, github.repository) }})
