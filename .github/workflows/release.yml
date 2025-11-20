@@ -5,35 +5,283 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.3.0)'
+        required: true
+        type: string
+
+env:
+  ENVIRONMENT: PROD
 
 jobs:
   release:
-    runs-on: 'lunexor'
+    runs-on: lunexor
+    
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "Generating changelog for ${{ steps.version.outputs.version }}..."
+          
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "First release - generating full changelog"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog since $PREV_TAG"
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Save to file
+          cat > CHANGELOG.txt << EOF
+====================================
+📦 MM MEGAPHONE RELEASE
+====================================
 
+Version: ${{ steps.version.outputs.version }}
+Date: $(date '+%Y-%m-%d %H:%M:%S UTC')
+Repository: ${{ github.repository }}
+Author: ${{ github.actor }}
+
+====================================
+📝 CHANGELOG
+====================================
+
+${CHANGELOG}
+
+====================================
+📥 INSTALLATION
+====================================
+
+1. Download mm_megaphone-${{ steps.version.outputs.version }}.tar.gz
+2. Extract to your server's resources folder
+3. Add to server.cfg:
+   ensure pma-voice
+   ensure mm_megaphone
+4. Configure config/config.lua
+5. Restart server
+
+====================================
+🔗 LINKS
+====================================
+
+Repository: https://github.com/${{ github.repository }}
+Issues: https://github.com/${{ github.repository }}/issues
+Wiki: https://github.com/${{ github.repository }}/wiki
+
+====================================
+EOF
+          
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+          
+          # Count commits
+          if [ -z "$PREV_TAG" ]; then
+            COMMIT_COUNT=$(git rev-list --count HEAD)
+          else
+            COMMIT_COUNT=$(git rev-list --count ${PREV_TAG}..HEAD)
+          fi
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+      
+      - name: Create release archive
+        id: archive
+        run: |
+          ARCHIVE_NAME="mm_megaphone-${{ steps.version.outputs.version }}.tar.gz"
+          
+          echo "📦 Creating release archive: $ARCHIVE_NAME"
+          
+          tar --exclude='.git' \
+              --exclude='.github' \
+              --exclude='.gitignore' \
+              --exclude='*.md' \
+              --exclude='CHANGELOG.txt' \
+              --transform 's,^,mm_megaphone/,' \
+              -czf "$ARCHIVE_NAME" .
+          
+          # Get file size
+          FILE_SIZE=$(du -h "$ARCHIVE_NAME" | cut -f1)
+          
+          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+          
+          ls -lh "$ARCHIVE_NAME"
+      
       - name: Create GitHub Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
-          body: |
-            Release ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: CHANGELOG.txt
           draft: false
-          prerelease: false
-
-      - name: Create archive of resource
+          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'rc') }}
+          files: |
+            ${{ steps.archive.outputs.archive_name }}
+            CHANGELOG.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Discord notification - Success
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          ARCHIVE_NAME="mm_megaphone-${{ github.ref_name }}.tar.gz"
-          tar --exclude='.git' --exclude='.github' -czf "$ARCHIVE_NAME" .
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
-
-      - name: Upload release asset
-        uses: actions/upload-release-asset@v1
+          # Prepare changelog excerpt (first 10 lines)
+          CHANGELOG_EXCERPT=$(head -n 10 CHANGELOG.txt | tail -n +8 | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}')
+          
+          # Determine if prerelease
+          IS_PRERELEASE="false"
+          RELEASE_TYPE="Stable Release"
+          RELEASE_COLOR=3066993
+          
+          if [[ "${{ steps.version.outputs.version }}" =~ (alpha|beta|rc) ]]; then
+            IS_PRERELEASE="true"
+            RELEASE_TYPE="Pre-Release"
+            RELEASE_COLOR=16776960
+          fi
+          
+          curl -F "payload_json={
+            \"username\": \"🚀 MM Megaphone Release Bot\",
+            \"avatar_url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg\",
+            \"content\": \"@everyone 🎉 **New Release Available!**\",
+            \"embeds\": [{
+              \"title\": \"🎉 Release ${{ steps.version.outputs.version }}\",
+              \"description\": \"**$RELEASE_TYPE** for MM Megaphone FiveM Addon\",
+              \"color\": $RELEASE_COLOR,
+              \"fields\": [
+                {
+                  \"name\": \"📦 Version\",
+                  \"value\": \"\`${{ steps.version.outputs.version }}\` (\`${{ steps.version.outputs.version_number }}\`)\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🌍 Environment\",
+                  \"value\": \"\`${{ env.ENVIRONMENT }}\`\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"📊 Type\",
+                  \"value\": \"\`$RELEASE_TYPE\`\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"📝 Commits\",
+                  \"value\": \"**${{ steps.changelog.outputs.commit_count }}** commits since last release\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"📦 Archive Size\",
+                  \"value\": \"\`${{ steps.archive.outputs.file_size }}\`\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"👤 Released by\",
+                  \"value\": \"${{ github.actor }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"📥 Download\",
+                  \"value\": \"[Download ${{ steps.archive.outputs.archive_name }}](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.archive.outputs.archive_name }})\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"🔗 Links\",
+                  \"value\": \"[Release Page](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}) • [Repository](https://github.com/${{ github.repository }}) • [Issues](https://github.com/${{ github.repository }}/issues)\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"📋 Installation\",
+                  \"value\": \"1️⃣ Download archive\\n2️⃣ Extract to resources folder\\n3️⃣ Add to server.cfg: \\\`ensure mm_megaphone\\\`\\n4️⃣ Configure & restart\",
+                  \"inline\": false
+                }
+              ],
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+              \"footer\": {
+                \"text\": \"GitHub Releases • ${{ env.ENVIRONMENT }}\",
+                \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
+              },
+              \"thumbnail\": {
+                \"url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/lua/lua-original.svg\"
+              }
+            }]
+          }" \
+          -F "files[0]=@CHANGELOG.txt" \
+          -F "files[1]=@${{ steps.archive.outputs.archive_name }}" \
+          "$DISCORD_WEBHOOK"
+      
+      - name: Discord notification - Failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" -X POST \
+            -d "{
+              \"username\": \"🚀 MM Megaphone Release Bot\",
+              \"avatar_url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg\",
+              \"embeds\": [{
+                \"title\": \"❌ Release fehlgeschlagen\",
+                \"description\": \"**FEHLER:** Release ${{ steps.version.outputs.version }} konnte nicht erstellt werden\",
+                \"color\": 15158332,
+                \"fields\": [
+                  {
+                    \"name\": \"📦 Version\",
+                    \"value\": \"\`${{ steps.version.outputs.version }}\`\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"🌍 Environment\",
+                    \"value\": \"\`${{ env.ENVIRONMENT }}\`\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"👤 Triggered by\",
+                    \"value\": \"${{ github.actor }}\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"🔗 Workflow\",
+                    \"value\": \"[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
+                    \"inline\": false
+                  },
+                  {
+                    \"name\": \"💡 Next Steps\",
+                    \"value\": \"1️⃣ Check workflow logs\\n2️⃣ Fix issues\\n3️⃣ Re-run workflow or push new tag\",
+                    \"inline\": false
+                  }
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+                \"footer\": {
+                  \"text\": \"GitHub Releases • ${{ env.ENVIRONMENT }} • Action Required\",
+                  \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
+                }
+              }]
+            }" \
+            "$DISCORD_WEBHOOK"
+      
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.ARCHIVE_NAME }}
-          asset_name: ${{ env.ARCHIVE_NAME }}
-          asset_content_type: application/gzip
+          name: release-${{ steps.version.outputs.version }}
+          path: |
+            CHANGELOG.txt
+            ${{ steps.archive.outputs.archive_name }}
+          retention-days: 90
