@@ -66,3 +66,12 @@ If you have questions or issues, you can open an issue on GitHub or contact the 
 ## Issues
 
 Please submit issues here: [GitHub Issues](https://github.com/mleem97/mm_megaphone/issues). Without an issue submission, I cannot address bugs or provide fixes.
+
+## Compatibility
+
+- pma-voice: Compatible with stable v6.6.2 and known pre-release v7.x (tested up to v7.0.2-rc3). Newer pma-voice versions introduce extra convars (e.g. `voice_defaultProximityMode`, `voice_defaultRadioVolume`, `voice_micClickVolume`) — this resource supports both v6 and v7 APIs used here.
+- Minimum recommended FiveM server build: `2545+` (use modern builds for `lua54` and voice plugin compatibility).
+
+## Changelog
+
+- 1.3.0: Compatibility improvements for `pma-voice` v6/v7, server-side validation, config additions and CI workflow.
