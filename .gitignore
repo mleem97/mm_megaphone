@@ -1,0 +1,50 @@
+# .gitattributes for mm_megaphone
+
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Lua files
+*.lua text eol=lf
+
+# Config files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+.luacheckrc text eol=lf
+
+# Scripts
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# GitHub files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Archives
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.7z binary
+*.rar binary
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+
+# Audio
+*.mp3 binary
+*.ogg binary
+*.wav binary
+
+# Video
+*.mp4 binary
+*.avi binary

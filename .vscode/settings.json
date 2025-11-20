@@ -114,5 +114,11 @@
     ".github/workflows/lua-lint.yml",
     ".github/workflows/release.yml"
   ],
+    "problems.decorations.enabled": true,
+  "yaml.validate": true,
+  "github-actions.diagnostics.disabled": [
+    "action-not-found",
+    "context-access-invalid"
+  ],
   "github-actions.offline-mode": false  
 }
