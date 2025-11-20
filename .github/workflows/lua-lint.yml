@@ -12,7 +12,7 @@ on:
     paths:
       - '**.lua'
       - '.luacheckrc'
-  # NEU: Erlaubt den Aufruf durch den Release-Workflow
+  # Erlaubt den Aufruf durch andere Workflows (z.B. Release)
   workflow_call:
 
 env:
@@ -21,12 +21,13 @@ env:
 
 jobs:
   lint:
-    runs-on: lunexor 
+    runs-on: lunexor
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Nutze offizielle Lua Actions statt apt-get
       - name: Setup Lua
         uses: leafo/gh-actions-lua@v10
         with:
@@ -35,6 +36,7 @@ jobs:
       - name: Setup Luarocks
         uses: leafo/gh-actions-luarocks@v4
 
+      # Cache basierend auf .luacheckrc Hash für optimale Invalidierung
       - name: Cache LuaRocks packages
         uses: actions/cache@v4
         id: cache-luarocks
@@ -47,11 +49,13 @@ jobs:
       - name: Install luacheck
         run: luarocks install luacheck
 
+      # Führe Luacheck aus mit strukturiertem Error Handling
       - name: Run luacheck
         id: luacheck
         run: |
           echo "Running luacheck in ${{ env.ENVIRONMENT }} environment..."
           
+          # Erstelle strukturierten Report Header
           {
             echo "====================================="
             echo "LUACHECK REPORT - ${{ env.ENVIRONMENT }}"
@@ -63,11 +67,13 @@ jobs:
             echo ""
           } > luacheck-report.txt
           
+          # Exit-Code fangen, damit wir den Report generieren können
           set +e
           luacheck . --formatter plain --codes --ranges >> luacheck-report.txt 2>&1
           EXIT_CODE=$?
           set -e
           
+          # Report Footer mit Exit Code
           {
             echo ""
             echo "====================================="
@@ -75,8 +81,10 @@ jobs:
             echo "====================================="
           } >> luacheck-report.txt
           
+          # Schreibe Exit Code für spätere Steps
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           
+          # Extrahiere Metriken aus dem Report
           WARNINGS=$(grep -c "warning" luacheck-report.txt || echo "0")
           ERRORS=$(grep -c "error" luacheck-report.txt || echo "0")
           FILES=$(grep "Total:" luacheck-report.txt | tail -1 | awk '{print $6}' || echo "0")
@@ -85,25 +93,30 @@ jobs:
           echo "errors=$ERRORS" >> $GITHUB_OUTPUT
           echo "files=$FILES" >> $GITHUB_OUTPUT
           
+          # Erst NACH Report-Generierung mit Exit Code abbrechen
           if [ $EXIT_CODE -ne 0 ]; then
             exit $EXIT_CODE
           fi
 
+      # Discord Notification: Erstelle Payload als Datei (verhindert Escaping-Probleme)
       - name: Prepare Discord Payload
         if: always() && env.ENVIRONMENT == 'PROD'
         id: discord_payload
         run: |
           STATUS="${{ job.status }}"
+          
+          # Setze Farbe und Titel basierend auf Status
           if [ "$STATUS" == "success" ]; then
-            COLOR=3066993 
+            COLOR=3066993  # Grün
             TITLE="✅ Lua Lint erfolgreich"
             DESC="Alle Lua-Dateien haben die Lint-Prüfung bestanden"
           else
-            COLOR=15158332 
+            COLOR=15158332  # Rot
             TITLE="❌ Lua Lint fehlgeschlagen"
             DESC="**⚠️ ACHTUNG:** Lint-Fehler gefunden!"
           fi
           
+          # Erstelle JSON Payload in temporärer Datei
           cat <<EOF > payload.json
           {
             "username": "MM Megaphone CI/CD",
@@ -113,8 +126,8 @@ jobs:
               "description": "$DESC",
               "color": $COLOR,
               "fields": [
-                { "name": "📊 Ergebnisse", "value": "📁 **${{ steps.luacheck.outputs.files }}** Dateien\n⚠️ **${{ steps.luacheck.outputs.warnings }}** Warnungen\n❌ **${{ steps.luacheck.outputs.errors }}** Fehler", "inline": false },
-                { "name": "🏷️ Repo / Branch", "value": "${{ github.repository }} / \`${{ github.ref_name }}\`", "inline": true },
+                { "name": "📊 Ergebnisse", "value": "📁 **${{ steps.luacheck.outputs.files }}** Dateien\\n⚠️ **${{ steps.luacheck.outputs.warnings }}** Warnungen\\n❌ **${{ steps.luacheck.outputs.errors }}** Fehler", "inline": false },
+                { "name": "🏷️ Repo / Branch", "value": "${{ github.repository }} / \\`${{ github.ref_name }}\\`", "inline": true },
                 { "name": "🔗 Logs", "value": "[View Action](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": true }
               ],
               "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
@@ -127,6 +140,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # Sende Payload aus Datei (verhindert Escaping-Probleme)
           curl -s -F "payload_json=$(cat payload.json)" \
                -F "files[0]=@luacheck-report.txt" \
                "$DISCORD_WEBHOOK"
@@ -151,10 +165,11 @@ jobs:
             
             [🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
+      # Upload Report auch bei Fehlern (if: always())
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: luacheck-report
           path: luacheck-report.txt
-          retention-days: 14  
+          retention-days: 14
