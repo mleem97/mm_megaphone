@@ -5,85 +5,21 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag (e.g., v1.3.0)'
-        required: true
-        type: string
 
-env:
-  ENVIRONMENT: PROD
+permissions:
+  contents: write
 
 jobs:
   release:
-    runs-on: lunexor
-    
+    runs-on: 'lunexor'
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Determine version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${{ github.ref_name }}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
-      
-      - name: Generate changelog
-        id: changelog
-        run: |
-          echo "Generating changelog..."
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          
-          if [ -z "$PREV_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
-            COMMIT_COUNT=$(git rev-list --count HEAD)
-          else
-            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
-            COMMIT_COUNT=$(git rev-list --count ${PREV_TAG}..HEAD)
-          fi
-          
-          # Create changelog file
-          cat > CHANGELOG.txt << ENDOFFILE
-            ====================================
-            MM MEGAPHONE RELEASE
-            ====================================
-            
-            Version: ${{ steps.version.outputs.version }}
-            Date: $(date '+%Y-%m-%d %H:%M:%S UTC')
-            Repository: ${{ github.repository }}
-            Author: ${{ github.actor }}
-            
-            ====================================
-            CHANGELOG
-            ====================================
-            
-            ${CHANGELOG}
-            
-            ====================================
-            INSTALLATION
-            ====================================
-            
-            1. Download archive
-            2. Extract to resources folder
-            3. Add to server.cfg: ensure mm_megaphone
-            4. Configure and restart
-            
-            ====================================
-            ENDOFFILE
-          
-          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
-      
+
       - name: Create archive of resource
         run: |
-          ARCHIVE_NAME="mm_megaphone-${{ steps.version.outputs.version }}.tar.gz"
-          tar --exclude='.git' --exclude='.github' --exclude='*.md' -czf "$ARCHIVE_NAME" .
+          ARCHIVE_NAME="mm_megaphone-${{ github.ref_name }}.tar.gz"
+          tar --exclude='.git' --exclude='.github' -czf "$ARCHIVE_NAME" .
           echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
 
       - name: Create Release
@@ -91,42 +27,6 @@ jobs:
         with:
           files: ${{ env.ARCHIVE_NAME }}
           body: |
-            Release ${{ steps.version.outputs.version }}
+            Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Discord notification
-        if: success()
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          curl -F "payload_json={
-            \"username\": \"MM Megaphone Release\",
-            \"content\": \"🎉 New Release: ${{ steps.version.outputs.version }}\",
-            \"embeds\": [{
-              \"title\": \"Release ${{ steps.version.outputs.version }}\",
-              \"color\": 3066993,
-              \"fields\": [
-                {
-                  \"name\": \"Version\",
-                  \"value\": \"\`${{ steps.version.outputs.version }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"Commits\",
-                  \"value\": \"${{ steps.changelog.outputs.commit_count }}\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"Size\",
-                  \"value\": \"\`${{ steps.archive.outputs.file_size }}\`\",
-                  \"inline\": true
-                }
-              ]
-            }]
-          }" \
-          -F "files[0]=@CHANGELOG.txt" \
-          -F "files[1]=@${{ steps.archive.outputs.archive_name }}" \
-          "$DISCORD_WEBHOOK"

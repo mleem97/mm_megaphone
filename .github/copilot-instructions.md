@@ -1,6 +1,47 @@
 <!--
 Repository: mm_megaphone
 Purpose: Guidance for AI coding agents (Copilot/GitHub agents) to work productively in this repo.
+-->
+
+# Copilot / AI Agent Instructions — mm_megaphone
+
+- Purpose: Make safe, discoverable edits to this FiveM resource (client/server).
+
+- Big picture (one-liner): client controls input and voice overrides; server enforces permissions and logs usage; a bridge detects frameworks.
+
+- Core files to read first:
+  - `fxmanifest.lua` — resource manifest, dependency `pma-voice`.
+  - `config/config.lua` — shared `Config` table (defaults, locales, presets).
+  - `bridge/framework.lua` — ESX/QB/ox detection and helper APIs.
+  - `client/main.lua`, `client/submix.lua` — input, `pma-voice` overrides, Mumble submix handling.
+  - `server/main.lua`, `logs/logs.lua` — server-side validation and persistent logging.
+
+- Quick cookbook (copy/paste safe patterns):
+  - Permission checks (client): call `CanUseCarMegaphone()` from bridge.
+  - Voice override (client): `exports['pma-voice']:overrideProximityRange(range, true)` and on stop `exports['pma-voice']:clearProximityOverride()`.
+  - Apply audio effect: create single submix `CreateAudioSubmix(Config.SubmixName)` and `MumbleSetSubmixForServerId(PlayerId(), submix)`; remove with `MumbleSetSubmixForServerId(PlayerId(), -1)`.
+  - Server safety: duplicate any permission check on server before emitting events (see `server/main.lua` for ESX/QB examples).
+
+- Conventions & guarantees:
+  - `Config` is shared and authoritative — update `config/config.lua` when changing defaults.
+  - Notifications use keys in `Config.Notifications` and translations in `Config.Locales`.
+  - Event and export names use `mm_megaphone:*` or exported fn names (e.g., `ActivateMegaphone`).
+
+- Workflows worth knowing:
+  - Local test: copy resource to FiveM server `resources/`, then in server console run `refresh` and `ensure mm_megaphone`.
+  - Release: `.github/workflows/release.yml` packages a tarball and creates a GitHub release; it optionally posts to Discord if `secrets.DISCORD_WEBHOOK_URL` exists.
+
+- Safety notes (must follow):
+  - Never rely only on client checks for permissions. Add server-side validation for any action that changes game state or grants abilities.
+  - Clean up audio submixes — avoid creating per-player submixes without removal.
+
+- Unknowns / ask-before-changing:
+  - CI runner `runs-on: lunexor` and any release/deployment secrets (Discord webhook). Confirm before modifying release workflow or runner settings.
+
+If you want, I can add a short code example showing how to add a new export with server validation and locale entry — say "export-example" and I'll append it.
+<!--
+Repository: mm_megaphone
+Purpose: Guidance for AI coding agents (Copilot/GitHub agents) to work productively in this repo.
 Do not include speculative or non-discoverable practices. Reference only files and patterns present in the tree.
 -->
 
