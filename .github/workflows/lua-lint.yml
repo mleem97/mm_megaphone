@@ -12,6 +12,8 @@ on:
     paths:
       - '**.lua'
       - '.luacheckrc'
+  # NEU: Erlaubt den Aufruf durch den Release-Workflow
+  workflow_call:
 
 env:
   ENVIRONMENT: PROD
@@ -19,8 +21,6 @@ env:
 
 jobs:
   lint:
-    # HINWEIS: Falls 'lunexor' dein eigener Runner ist, lass es so. 
-    # Falls nicht, nutze 'ubuntu-latest' für schnellere Startzeiten.
     runs-on: lunexor 
 
     steps:
@@ -52,7 +52,6 @@ jobs:
         run: |
           echo "Running luacheck in ${{ env.ENVIRONMENT }} environment..."
           
-          # Header erstellen
           {
             echo "====================================="
             echo "LUACHECK REPORT - ${{ env.ENVIRONMENT }}"
@@ -64,14 +63,11 @@ jobs:
             echo ""
           } > luacheck-report.txt
           
-          # Luacheck ausführen und Exit-Code speichern
-          # set +e verhindert, dass das Skript sofort abbricht, damit wir den Footer schreiben können
           set +e
           luacheck . --formatter plain --codes --ranges >> luacheck-report.txt 2>&1
           EXIT_CODE=$?
           set -e
           
-          # Footer hinzufügen
           {
             echo ""
             echo "====================================="
@@ -81,7 +77,6 @@ jobs:
           
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           
-          # Ergebnisse parsen (für Notifications)
           WARNINGS=$(grep -c "warning" luacheck-report.txt || echo "0")
           ERRORS=$(grep -c "error" luacheck-report.txt || echo "0")
           FILES=$(grep "Total:" luacheck-report.txt | tail -1 | awk '{print $6}' || echo "0")
@@ -90,12 +85,9 @@ jobs:
           echo "errors=$ERRORS" >> $GITHUB_OUTPUT
           echo "files=$FILES" >> $GITHUB_OUTPUT
           
-          # Failen, wenn Fehler gefunden wurden
           if [ $EXIT_CODE -ne 0 ]; then
             exit $EXIT_CODE
           fi
-
-      # --- Notifications ---
 
       - name: Prepare Discord Payload
         if: always() && env.ENVIRONMENT == 'PROD'
@@ -103,16 +95,15 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           if [ "$STATUS" == "success" ]; then
-            COLOR=3066993 # Green
+            COLOR=3066993 
             TITLE="✅ Lua Lint erfolgreich"
             DESC="Alle Lua-Dateien haben die Lint-Prüfung bestanden"
           else
-            COLOR=15158332 # Red
+            COLOR=15158332 
             TITLE="❌ Lua Lint fehlgeschlagen"
             DESC="**⚠️ ACHTUNG:** Lint-Fehler gefunden!"
           fi
           
-          # JSON sicher bauen (vermeidet Quote-Probleme in curl)
           cat <<EOF > payload.json
           {
             "username": "MM Megaphone CI/CD",
@@ -147,7 +138,6 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_API_TOKEN }}
           format: markdown
-          # Dynamische Nachricht basierend auf Job-Status
           message: |
             ${{ job.status == 'success' && '✅ *Lua Lint erfolgreich*' || '❌ *Lua Lint fehlgeschlagen*' }}
             
@@ -167,4 +157,4 @@ jobs:
         with:
           name: luacheck-report
           path: luacheck-report.txt
-          retention-days: 14 # Reduziert auf 14 Tage um Speicher zu sparen
+          retention-days: 14  

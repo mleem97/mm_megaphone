@@ -8,6 +8,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # NEU: Erlaubt den Aufruf durch den Release-Workflow
+  workflow_call:
 
 jobs:
   test_release_workflow:
@@ -21,7 +23,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          cache: 'pip' # Caching für pip aktiviert (beschleunigt Wiederholungen)
+          cache: 'pip'
 
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml
@@ -42,16 +44,15 @@ jobs:
           STATUS="${{ job.status }}"
           
           if [ "$STATUS" == "success" ]; then
-            COLOR=3066993 # Green
+            COLOR=3066993
             TITLE="✅ Workflow Validierung erfolgreich"
             DESC="Das Release-Workflow-Skript wurde erfolgreich validiert."
           else
-            COLOR=15158332 # Red
+            COLOR=15158332
             TITLE="❌ Workflow Validierung fehlgeschlagen"
             DESC="**⚠️ Fehler:** Die Validierung des Release-Workflows ist gescheitert."
           fi
           
-          # JSON sicher bauen
           cat <<EOF > payload.json
           {
             "username": "MM Megaphone CI/CD",

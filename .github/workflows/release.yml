@@ -10,7 +10,19 @@ permissions:
   contents: write
 
 jobs:
+  # 1. Abhängigkeit: Linting durchführen
+  prerequisite-lint:
+    uses: ./.github/workflows/lua-lint-optimized.yml
+    secrets: inherit
+
+  # 2. Abhängigkeit: Tests durchführen
+  prerequisite-test:
+    uses: ./.github/workflows/test-release-workflow.yml
+    secrets: inherit
+
+  # 3. Eigentlicher Release (Wartet auf 1 und 2)
   release:
+    needs: [prerequisite-lint, prerequisite-test]
     runs-on: 'lunexor'
     steps:
       - name: Checkout
@@ -44,17 +56,15 @@ jobs:
           if [ "$STATUS" == "success" ]; then
             COLOR=3066993 # Green
             TITLE="🚀 Release Veröffentlicht: ${{ github.ref_name }}"
-            DESC="Ein neues Release wurde erfolgreich erstellt und hochgeladen."
-            # Falls URL leer ist (Fallback), Repository Link nutzen
+            DESC="Qualitätssicherung bestanden (Lint & Test). Release erfolgreich erstellt."
             if [ -z "$RELEASE_URL" ]; then RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"; fi
           else
             COLOR=15158332 # Red
             TITLE="❌ Release fehlgeschlagen"
-            DESC="**⚠️ Fehler:** Der Release-Prozess für ${{ github.ref_name }} ist abgebrochen."
+            DESC="**⚠️ Fehler:** Der Release-Prozess ist fehlgeschlagen (siehe vorherige Schritte)."
             RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           
-          # JSON sicher bauen
           cat <<EOF > payload.json
           {
             "username": "MM Megaphone CI/CD",
@@ -91,6 +101,6 @@ jobs:
             ${{ job.status == 'success' && '🚀 *Neues Release Veröffentlicht*' || '❌ *Release fehlgeschlagen*' }}
             
             *Version:* `${{ github.ref_name }}`
-            *Datei:* `${{ env.ARCHIVE_NAME }}`
+            *Status:* Lint ✅ | Test ✅ | Release ${{ job.status == 'success' && '✅' || '❌' }}
             
             [🔗 Zum Release](${{ steps.create_release.outputs.url || github.server_url }}/${{ github.repository }}/releases)
