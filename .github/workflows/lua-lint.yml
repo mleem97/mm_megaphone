@@ -19,11 +19,11 @@ env:
 jobs:
   lint:
     runs-on: lunexor
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Cache luacheck installation
         id: cache-luacheck
         uses: actions/cache@v4
@@ -35,19 +35,16 @@ jobs:
           key: ${{ runner.os }}-luacheck-${{ hashFiles('.github/workflows/lua-lint.yml') }}
           restore-keys: |
             ${{ runner.os }}-luacheck-
-      
+
       - name: Install luacheck
         if: steps.cache-luacheck.outputs.cache-hit != 'true'
         run: |
           set -e
-          
           if command -v luacheck >/dev/null 2>&1; then
             echo "luacheck already installed"
             exit 0
           fi
-          
           echo "Installing luacheck..."
-          
           if command -v apt-get >/dev/null 2>&1; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq lua5.3 luarocks
@@ -59,14 +56,12 @@ jobs:
             echo "No package manager found"
             exit 1
           fi
-          
           sudo luarocks install luacheck
-      
+
       - name: Run luacheck
         id: luacheck
         run: |
           echo "Running luacheck in ${{ env.ENVIRONMENT }} environment..."
-          
           # Create report header
           {
             echo "====================================="
@@ -97,7 +92,7 @@ jobs:
           
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           exit $EXIT_CODE
-      
+
       - name: Parse results
         if: always()
         id: parse
@@ -118,7 +113,7 @@ jobs:
           echo "errors=$ERRORS" >> $GITHUB_OUTPUT
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "files=$FILES" >> $GITHUB_OUTPUT
-      
+
       - name: Discord notification - Success
         if: success() && env.ENVIRONMENT == 'PROD'
         env:
@@ -158,7 +153,7 @@ jobs:
           }" \
           -F "files[0]=@luacheck-report.txt" \
           "$DISCORD_WEBHOOK"
-      
+
       - name: Discord notification - Failure
         if: failure() && env.ENVIRONMENT == 'PROD'
         env:
@@ -188,7 +183,48 @@ jobs:
           }" \
           -F "files[0]=@luacheck-report.txt" \
           "$DISCORD_WEBHOOK"
-      
+
+      # Telegram Benachrichtigungen (NEU)
+      - name: Telegram notification - Success
+        if: success() && env.ENVIRONMENT == 'PROD'
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_API_TOKEN }}
+          format: markdown
+          message: |
+            ✅ *Lua Lint erfolgreich*
+            
+            *Repository:* ${{ github.repository }}
+            *Branch:* `${{ github.ref_name }}`
+            *Environment:* `${{ env.ENVIRONMENT }}`
+            
+            📊 *Ergebnisse:*
+            📁 ${{ steps.parse.outputs.files }} Dateien
+            ⚠️ ${{ steps.parse.outputs.warnings }} Warnungen
+            ❌ ${{ steps.parse.outputs.errors }} Fehler
+
+      - name: Telegram notification - Failure
+        if: failure() && env.ENVIRONMENT == 'PROD'
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_API_TOKEN }}
+          format: markdown
+          message: |
+            ❌ *Lua Lint fehlgeschlagen*
+            
+            *Repository:* ${{ github.repository }}
+            *Branch:* `${{ github.ref_name }}`
+            *Environment:* `${{ env.ENVIRONMENT }}`
+            
+            📊 *Fehlerübersicht:*
+            📁 ${{ steps.parse.outputs.files }} Dateien
+            ⚠️ ${{ steps.parse.outputs.warnings }} Warnungen
+            ❌ ${{ steps.parse.outputs.errors }} Fehler
+            
+            [🔍 Workflow-Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
