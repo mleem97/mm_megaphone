@@ -11,8 +11,8 @@ on:
 
 jobs:
   test_release_workflow:
-    runs-on: 'lunexor'
-    
+    runs-on: lunexor
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,15 +27,12 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml
 
-      # Führe Workflow-Validierung aus
+      # Führe Workflow-Validierung durch Unit Tests
       - name: Run release.yml unit tests
         id: run_tests
-        env:
-          WORKFLOW_PATH: .github/workflows/release.yml
         run: |
+          WORKFLOW_PATH=".github/workflows/release.yml"
           python scripts/validate_release_workflow.py
-
-      # --- Notifications ---
 
       # Discord Notification: Erstelle Payload als Datei (verhindert Escaping-Probleme)
       - name: Prepare Discord Payload
@@ -52,7 +49,7 @@ jobs:
           else
             COLOR=15158332  # Rot
             TITLE="❌ Workflow Validierung fehlgeschlagen"
-            DESC="**⚠️ Fehler:** Die Validierung des Release-Workflows ist gescheitert."
+            DESC="**⚠️ ACHTUNG:** Die Validierung des Release-Workflows ist gescheitert."
           fi
           
           # Erstelle JSON Payload in temporärer Datei
@@ -65,8 +62,8 @@ jobs:
               "description": "$DESC",
               "color": $COLOR,
               "fields": [
-                { "name": "🧪 Test", "value": "\\`validate_release_workflow.py\\`", "inline": true },
-                { "name": "🌿 Branch", "value": "\\`${{ github.ref_name }}\\`", "inline": true },
+                { "name": "📋 Test", "value": "\\`validate_release_workflow.py\\`", "inline": true },
+                { "name": "🏷️ Repo / Branch", "value": "${{ github.repository }} / \\`${{ github.ref_name }}\\`", "inline": true },
                 { "name": "🔗 Logs", "value": "[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": true }
               ],
               "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
@@ -79,20 +76,35 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Sende Payload aus Datei (verhindert Escaping-Probleme)
           curl -s -F "payload_json=$(cat payload.json)" "$DISCORD_WEBHOOK"
 
       - name: Notify Telegram
         if: always()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_API_TOKEN }}
-          format: markdown
-          message: |
-            ${{ job.status == 'success' && '✅ *Workflow Validierung erfolgreich*' || '❌ *Workflow Validierung fehlgeschlagen*' }}
-            
-            *Test:* `validate_release_workflow.py`
-            *Branch:* `${{ github.ref_name }}`
-            
-            [🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_API_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          STATUS="${{ job.status }}"
+          
+          # Setze Emoji basierend auf Status
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+            STATUS_TEXT="erfolgreich"
+          else
+            EMOJI="❌"
+            STATUS_TEXT="fehlgeschlagen"
+          fi
+          
+          # Erstelle Nachricht (URL-encoded für Telegram API)
+          MESSAGE="$EMOJI *Workflow Validierung $STATUS_TEXT*%0A%0A"
+          MESSAGE+="*Repo:* ${{ github.repository }}%0A"
+          MESSAGE+="*Branch:* \`${{ github.ref_name }}\`%0A"
+          MESSAGE+="*Test:* \`validate_release_workflow.py\`%0A%0A"
+          MESSAGE+="[🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          
+          # Sende via Telegram Bot API
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+               -d "chat_id=${TELEGRAM_CHAT_ID}" \
+               -d "text=${MESSAGE}" \
+               -d "parse_mode=Markdown" \
+               -d "disable_web_page_preview=true"
