@@ -13,32 +13,32 @@ env:
   ENVIRONMENT: PROD
 
 jobs:
-  # 1. Abhängigkeit: Linting durchführen (Reusable Workflow)
+  # 1. Voraussetzung: Linting ausführen (Reusable Workflow)
   prerequisite-lint:
     uses: ./.github/workflows/lua-lint.yml
     secrets: inherit
 
-  # 2. Abhängigkeit: Tests durchführen (Reusable Workflow)
+  # 2. Voraussetzung: Tests ausführen (Reusable Workflow)
   prerequisite-test:
     uses: ./.github/workflows/test-release.yml
     secrets: inherit
 
-  # 3. Eigentlicher Release (Wartet auf Lint und Test)
+  # 3. Eigentlicher Release (wartet auf Lint und Test)
   release:
+    runs-on: lunexor
     needs: [prerequisite-lint, prerequisite-test]
-    runs-on: 'lunexor'
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Erstelle Release-Archiv mit FiveM Resource (exkludiere .git und .github)
+      # Erstelle Release-Archiv mit Fixed Resource (exkludiere .git und .github)
       - name: Create archive of resource
         run: |
           ARCHIVE_NAME="mm_megaphone-${{ github.ref_name }}.tar.gz"
           
           echo "Creating release archive: $ARCHIVE_NAME"
-          tar --exclude='.git' --exclude='.github' -czf "$ARCHIVE_NAME" .
+          tar --exclude='.git*' --exclude='.github' -czf "$ARCHIVE_NAME" .
           
           # Zeige Archiv-Details
           echo "Archive created successfully:"
@@ -54,7 +54,7 @@ jobs:
         with:
           files: ${{ env.ARCHIVE_NAME }}
           body: |
-            Release ${{ github.ref_name }}
+            Release for ${{ github.ref_name }}
           draft: false
           prerelease: false
 
@@ -71,16 +71,16 @@ jobs:
           # Setze Farbe, Titel und Beschreibung basierend auf Status
           if [ "$STATUS" == "success" ]; then
             COLOR=3066993  # Grün
-            TITLE="🚀 Release Veröffentlicht: ${{ github.ref_name }}"
-            DESC="Qualitätssicherung bestanden (Lint & Test). Release erfolgreich erstellt."
-            # Fallback zur Releases-Seite, falls URL nicht verfügbar
-            if [ -z "$RELEASE_URL" ]; then 
+            TITLE="🎉 Release Veröffentlicht: ${{ github.ref_name }}"
+            DESC="**✅ Erfolgreich!** Bestanden (Lint & Test). Release erfolgreich erstellt."
+            # Fallback zur Release-Seite, falls URL nicht verfügbar
+            if [ -z "$RELEASE_URL" ]; then
               RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"
             fi
           else
             COLOR=15158332  # Rot
             TITLE="❌ Release fehlgeschlagen"
-            DESC="**⚠️ Fehler:** Der Release-Prozess ist fehlgeschlagen (siehe vorherige Schritte)."
+            DESC="**⚠️ ACHTUNG:** Release-Erstellung ist fehlgeschlagen!"
             RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           
@@ -94,9 +94,9 @@ jobs:
               "description": "$DESC",
               "color": $COLOR,
               "fields": [
-                { "name": "📦 Archiv", "value": "\\`${{ env.ARCHIVE_NAME }}\\`", "inline": true },
                 { "name": "🏷️ Version", "value": "\\`${{ github.ref_name }}\\`", "inline": true },
-                { "name": "🔗 Link", "value": "[Zum Release]($RELEASE_URL)", "inline": true }
+                { "name": "📦 Archiv", "value": "\\`${{ env.ARCHIVE_NAME }}\\`", "inline": true },
+                { "name": "🔗 Release", "value": "[Download]($RELEASE_URL)", "inline": true }
               ],
               "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
             }]
@@ -108,20 +108,49 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Sende Payload aus Datei (verhindert Escaping-Probleme)
           curl -s -F "payload_json=$(cat payload.json)" "$DISCORD_WEBHOOK"
 
       - name: Notify Telegram
         if: always()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_API_TOKEN }}
-          format: markdown
-          message: |
-            ${{ job.status == 'success' && '🚀 *Neues Release Veröffentlicht*' || '❌ *Release fehlgeschlagen*' }}
-            
-            *Version:* `${{ github.ref_name }}`
-            *Status:* Lint ✅ | Test ✅ | Release ${{ job.status == 'success' && '✅' || '❌' }}
-            
-            [🔗 Zum Release](${{ steps.create_release.outputs.url || format('{0}/{1}/releases', github.server_url, github.repository) }})
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_API_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          STATUS="${{ job.status }}"
+          RELEASE_URL="${{ steps.create_release.outputs.url }}"
+          
+          # Setze Emoji basierend auf Status
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="🎉"
+            STATUS_TEXT="erfolgreich"
+            # Fallback zur Release-Seite
+            if [ -z "$RELEASE_URL" ]; then
+              RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"
+            fi
+          else
+            EMOJI="❌"
+            STATUS_TEXT="fehlgeschlagen"
+            RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+          
+          # Erstelle Nachricht (URL-encoded für Telegram API)
+          MESSAGE="$EMOJI *Release $STATUS_TEXT*%0A%0A"
+          MESSAGE+="*Version:* \`${{ github.ref_name }}\`%0A"
+          MESSAGE+="*Repo:* ${{ github.repository }}%0A%0A"
+          MESSAGE+="✅ *Lint:* Bestanden%0A"
+          MESSAGE+="✅ *Test:* Bestanden%0A"
+          
+          if [ "$STATUS" == "success" ]; then
+            MESSAGE+="✅ *Release:* Erstellt%0A%0A"
+            MESSAGE+="[🚀 Release ansehen]($RELEASE_URL)"
+          else
+            MESSAGE+="❌ *Release:* Fehlgeschlagen%0A%0A"
+            MESSAGE+="[🔍 Logs ansehen]($RELEASE_URL)"
+          fi
+          
+          # Sende via Telegram Bot API
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+               -d "chat_id=${TELEGRAM_CHAT_ID}" \
+               -d "text=${MESSAGE}" \
+               -d "parse_mode=Markdown" \
+               -d "disable_web_page_preview=true"
