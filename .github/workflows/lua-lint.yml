@@ -152,23 +152,37 @@ jobs:
 
       - name: Notify Telegram
         if: always() && env.ENVIRONMENT == 'PROD'
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_API_TOKEN }}
-          format: markdown
-          message: |
-            ${{ job.status == 'success' && '✅ *Lua Lint erfolgreich*' || '❌ *Lua Lint fehlgeschlagen*' }}
-            
-            *Repo:* ${{ github.repository }}
-            *Branch:* `${{ github.ref_name }}`
-            
-            📊 *Ergebnisse:*
-            📁 ${{ steps.luacheck.outputs.files }} Dateien
-            ⚠️ ${{ steps.luacheck.outputs.warnings }} Warnungen
-            ❌ ${{ steps.luacheck.outputs.errors }} Fehler
-            
-            [🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_API_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          STATUS="${{ job.status }}"
+          
+          # Setze Emoji basierend auf Status
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+            STATUS_TEXT="erfolgreich"
+          else
+            EMOJI="❌"
+            STATUS_TEXT="fehlgeschlagen"
+          fi
+          
+          # Erstelle Nachricht (URL-encoded für Telegram API)
+          MESSAGE="$EMOJI *Lua Lint $STATUS_TEXT*%0A%0A"
+          MESSAGE+="*Repo:* ${{ github.repository }}%0A"
+          MESSAGE+="*Branch:* \`${{ github.ref_name }}\`%0A%0A"
+          MESSAGE+="📊 *Ergebnisse:*%0A"
+          MESSAGE+="📁 ${{ steps.luacheck.outputs.files }} Dateien%0A"
+          MESSAGE+="⚠️ ${{ steps.luacheck.outputs.warnings }} Warnungen%0A"
+          MESSAGE+="❌ ${{ steps.luacheck.outputs.errors }} Fehler%0A%0A"
+          MESSAGE+="[🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          
+          # Sende via Telegram Bot API
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+               -d "chat_id=${TELEGRAM_CHAT_ID}" \
+               -d "text=${MESSAGE}" \
+               -d "parse_mode=Markdown" \
+               -d "disable_web_page_preview=true"
 
       # Upload Report auch bei Fehlern (if: always())
       - name: Upload report artifact
