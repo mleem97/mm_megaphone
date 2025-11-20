@@ -4,8 +4,29 @@ on: [push, pull_request]
 
 jobs:
   lint:
-    runs-on: lunexor
+    runs-on: 'lunexor'
+
     steps:
       - uses: actions/checkout@v3
-      - uses: leafo/gh-actions-lua@v9
-      - uses: leafo/gh-actions-luacheck@v4
+      - name: Ensure luacheck is available
+        run: |
+          set -e
+          if command -v luacheck >/dev/null 2>&1; then
+            echo "luacheck already installed"
+            exit 0
+          fi
+          echo "luacheck not found — attempting to install via package manager"
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y lua5.3 luarocks
+            sudo luarocks install luacheck
+          elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y lua luarocks
+            sudo luarocks install luacheck
+          else
+            echo "No supported package manager detected; please preinstall 'luacheck' on the runner"
+            exit 1
+          fi
+      - name: Run Luacheck
+        run: |
+          luacheck .

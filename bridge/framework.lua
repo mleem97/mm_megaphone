@@ -4,6 +4,7 @@ Config = Config
 -- Erkennt ESX, QBCore, ox_core oder Standalone und kapselt Job-/Notify-Logik
 
 local Framework, playerJob, lib
+local ESX, QBCore
 
 local function DetectFramework()
     if GetResourceState('es_extended') == 'started' then
@@ -53,16 +54,16 @@ function RegisterFrameworkEvents()
     end
 end
 
-CreateThread(function()
-    while not DetectFramework() do Wait(100) end
+Citizen.CreateThread(function()
+    while not DetectFramework() do Citizen.Wait(100) end
     RegisterFrameworkEvents()
-    Wait(1000)
+    Citizen.Wait(1000)
     playerJob = GetPlayerJob()
     while true do
         if Framework ~= 'standalone' then
             playerJob = GetPlayerJob()
         end
-        Wait(10000)
+        Citizen.Wait(10000)
     end
 end)
 
