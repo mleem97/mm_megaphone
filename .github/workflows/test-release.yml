@@ -12,6 +12,7 @@ on:
 jobs:
   test_release_workflow:
     runs-on: 'lunexor'
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,12 +21,73 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+          cache: 'pip' # Caching für pip aktiviert (beschleunigt Wiederholungen)
 
-      - name: Install PyYAML
+      - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml
 
       - name: Run release.yml unit tests
+        id: run_tests
         env:
           WORKFLOW_PATH: .github/workflows/release.yml
         run: |
           python scripts/validate_release_workflow.py
+
+      # --- Notifications ---
+
+      - name: Prepare Discord Payload
+        if: always()
+        id: discord_payload
+        run: |
+          STATUS="${{ job.status }}"
+          
+          if [ "$STATUS" == "success" ]; then
+            COLOR=3066993 # Green
+            TITLE="✅ Workflow Validierung erfolgreich"
+            DESC="Das Release-Workflow-Skript wurde erfolgreich validiert."
+          else
+            COLOR=15158332 # Red
+            TITLE="❌ Workflow Validierung fehlgeschlagen"
+            DESC="**⚠️ Fehler:** Die Validierung des Release-Workflows ist gescheitert."
+          fi
+          
+          # JSON sicher bauen
+          cat <<EOF > payload.json
+          {
+            "username": "MM Megaphone CI/CD",
+            "avatar_url": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
+            "embeds": [{
+              "title": "$TITLE",
+              "description": "$DESC",
+              "color": $COLOR,
+              "fields": [
+                { "name": "🧪 Test", "value": "\`validate_release_workflow.py\`", "inline": true },
+                { "name": "🌿 Branch", "value": "\`${{ github.ref_name }}\`", "inline": true },
+                { "name": "🔗 Logs", "value": "[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": true }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+            }]
+          }
+          EOF
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -F "payload_json=$(cat payload.json)" "$DISCORD_WEBHOOK"
+
+      - name: Notify Telegram
+        if: always()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_API_TOKEN }}
+          format: markdown
+          message: |
+            ${{ job.status == 'success' && '✅ *Workflow Validierung erfolgreich*' || '❌ *Workflow Validierung fehlgeschlagen*' }}
+            
+            *Test:* `validate_release_workflow.py`
+            *Branch:* `${{ github.ref_name }}`
+            
+            [🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})

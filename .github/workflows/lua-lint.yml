@@ -15,74 +15,63 @@ on:
 
 env:
   ENVIRONMENT: PROD
+  LUA_VERSION: "5.3"
 
 jobs:
   lint:
-    runs-on: lunexor
+    # HINWEIS: Falls 'lunexor' dein eigener Runner ist, lass es so. 
+    # Falls nicht, nutze 'ubuntu-latest' für schnellere Startzeiten.
+    runs-on: lunexor 
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache luacheck installation
-        id: cache-luacheck
-        uses: actions/cache@v4
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
         with:
-          path: |
-            ~/.luarocks
-            /usr/local/bin/luacheck
-            /usr/local/share/lua
-          key: ${{ runner.os }}-luacheck-${{ hashFiles('.github/workflows/lua-lint.yml') }}
+          luaVersion: ${{ env.LUA_VERSION }}
+
+      - name: Setup Luarocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Cache LuaRocks packages
+        uses: actions/cache@v4
+        id: cache-luarocks
+        with:
+          path: ~/.luarocks
+          key: ${{ runner.os }}-lua-${{ env.LUA_VERSION }}-rocks-${{ hashFiles('.luacheckrc') }}
           restore-keys: |
-            ${{ runner.os }}-luacheck-
+            ${{ runner.os }}-lua-${{ env.LUA_VERSION }}-rocks-
 
       - name: Install luacheck
-        if: steps.cache-luacheck.outputs.cache-hit != 'true'
-        run: |
-          set -e
-          if command -v luacheck >/dev/null 2>&1; then
-            echo "luacheck already installed"
-            exit 0
-          fi
-          echo "Installing luacheck..."
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq lua5.3 luarocks
-          elif command -v yum >/dev/null 2>&1; then
-            sudo yum install -y -q lua luarocks
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y -q lua luarocks
-          else
-            echo "No package manager found"
-            exit 1
-          fi
-          sudo luarocks install luacheck
+        run: luarocks install luacheck
 
       - name: Run luacheck
         id: luacheck
         run: |
           echo "Running luacheck in ${{ env.ENVIRONMENT }} environment..."
-          # Create report header
+          
+          # Header erstellen
           {
             echo "====================================="
             echo "LUACHECK REPORT - ${{ env.ENVIRONMENT }}"
             echo "====================================="
-            echo ""
-            echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-            echo "Repository: ${{ github.repository }}"
-            echo "Branch: ${{ github.ref_name }}"
-            echo "Commit: ${GITHUB_SHA:0:7}"
+            echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Ref: ${{ github.ref_name }} (${GITHUB_SHA:0:7})"
             echo "Author: ${{ github.actor }}"
-            echo ""
             echo "====================================="
             echo ""
           } > luacheck-report.txt
           
-          # Run luacheck
-          luacheck . --formatter plain --codes --ranges | tee -a luacheck-report.txt
-          EXIT_CODE=${PIPESTATUS[0]}
+          # Luacheck ausführen und Exit-Code speichern
+          # set +e verhindert, dass das Skript sofort abbricht, damit wir den Footer schreiben können
+          set +e
+          luacheck . --formatter plain --codes --ranges >> luacheck-report.txt 2>&1
+          EXIT_CODE=$?
+          set -e
           
-          # Add footer
+          # Footer hinzufügen
           {
             echo ""
             echo "====================================="
@@ -91,144 +80,91 @@ jobs:
           } >> luacheck-report.txt
           
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          exit $EXIT_CODE
-
-      - name: Parse results
-        if: always()
-        id: parse
-        run: |
-          if [ -f luacheck-report.txt ]; then
-            WARNINGS=$(grep -c "warning" luacheck-report.txt 2>/dev/null || echo "0")
-            ERRORS=$(grep -c "error" luacheck-report.txt 2>/dev/null || echo "0")
-            TOTAL=$(grep "Total:" luacheck-report.txt | tail -1 | awk '{print $2}' || echo "0")
-            FILES=$(grep "Total:" luacheck-report.txt | tail -1 | awk '{print $6}' || echo "0")
-          else
-            WARNINGS=0
-            ERRORS=0
-            TOTAL=0
-            FILES=0
-          fi
+          
+          # Ergebnisse parsen (für Notifications)
+          WARNINGS=$(grep -c "warning" luacheck-report.txt || echo "0")
+          ERRORS=$(grep -c "error" luacheck-report.txt || echo "0")
+          FILES=$(grep "Total:" luacheck-report.txt | tail -1 | awk '{print $6}' || echo "0")
           
           echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
           echo "errors=$ERRORS" >> $GITHUB_OUTPUT
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "files=$FILES" >> $GITHUB_OUTPUT
+          
+          # Failen, wenn Fehler gefunden wurden
+          if [ $EXIT_CODE -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
 
-      - name: Discord notification - Success
-        if: success() && env.ENVIRONMENT == 'PROD'
+      # --- Notifications ---
+
+      - name: Prepare Discord Payload
+        if: always() && env.ENVIRONMENT == 'PROD'
+        id: discord_payload
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" == "success" ]; then
+            COLOR=3066993 # Green
+            TITLE="✅ Lua Lint erfolgreich"
+            DESC="Alle Lua-Dateien haben die Lint-Prüfung bestanden"
+          else
+            COLOR=15158332 # Red
+            TITLE="❌ Lua Lint fehlgeschlagen"
+            DESC="**⚠️ ACHTUNG:** Lint-Fehler gefunden!"
+          fi
+          
+          # JSON sicher bauen (vermeidet Quote-Probleme in curl)
+          cat <<EOF > payload.json
+          {
+            "username": "MM Megaphone CI/CD",
+            "avatar_url": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/lua/lua-original.svg",
+            "embeds": [{
+              "title": "$TITLE",
+              "description": "$DESC",
+              "color": $COLOR,
+              "fields": [
+                { "name": "📊 Ergebnisse", "value": "📁 **${{ steps.luacheck.outputs.files }}** Dateien\n⚠️ **${{ steps.luacheck.outputs.warnings }}** Warnungen\n❌ **${{ steps.luacheck.outputs.errors }}** Fehler", "inline": false },
+                { "name": "🏷️ Repo / Branch", "value": "${{ github.repository }} / \`${{ github.ref_name }}\`", "inline": true },
+                { "name": "🔗 Logs", "value": "[View Action](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": true }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+            }]
+          }
+          EOF
+
+      - name: Notify Discord
+        if: always() && env.ENVIRONMENT == 'PROD'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          curl -F "payload_json={
-            \"username\": \"MM Megaphone CI/CD\",
-            \"avatar_url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/lua/lua-original.svg\",
-            \"embeds\": [{
-              \"title\": \"✅ Lua Lint erfolgreich\",
-              \"description\": \"Alle Lua-Dateien haben die Lint-Prüfung bestanden\",
-              \"color\": 3066993,
-              \"fields\": [
-                {
-                  \"name\": \"📊 Ergebnisse\",
-                  \"value\": \"📁 **${{ steps.parse.outputs.files }}** Dateien\\n⚠️ **${{ steps.parse.outputs.warnings }}** Warnungen\\n❌ **${{ steps.parse.outputs.errors }}** Fehler\",
-                  \"inline\": false
-                },
-                {
-                  \"name\": \"🏷️ Repository\",
-                  \"value\": \"\`${{ github.repository }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"🌿 Branch\",
-                  \"value\": \"\`${{ github.ref_name }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"🌍 Environment\",
-                  \"value\": \"\`${{ env.ENVIRONMENT }}\`\",
-                  \"inline\": true
-                }
-              ],
-              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
-            }]
-          }" \
-          -F "files[0]=@luacheck-report.txt" \
-          "$DISCORD_WEBHOOK"
+          curl -s -F "payload_json=$(cat payload.json)" \
+               -F "files[0]=@luacheck-report.txt" \
+               "$DISCORD_WEBHOOK"
 
-      - name: Discord notification - Failure
-        if: failure() && env.ENVIRONMENT == 'PROD'
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          curl -F "payload_json={
-            \"username\": \"MM Megaphone CI/CD\",
-            \"avatar_url\": \"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/lua/lua-original.svg\",
-            \"embeds\": [{
-              \"title\": \"❌ Lua Lint fehlgeschlagen\",
-              \"description\": \"**⚠️ ACHTUNG:** Lint-Fehler gefunden!\",
-              \"color\": 15158332,
-              \"fields\": [
-                {
-                  \"name\": \"📊 Fehlerübersicht\",
-                  \"value\": \"📁 **${{ steps.parse.outputs.files }}** Dateien\\n⚠️ **${{ steps.parse.outputs.warnings }}** Warnungen\\n❌ **${{ steps.parse.outputs.errors }}** Fehler\",
-                  \"inline\": false
-                },
-                {
-                  \"name\": \"🔗 Logs\",
-                  \"value\": \"[View Full Log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
-                  \"inline\": false
-                }
-              ],
-              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
-            }]
-          }" \
-          -F "files[0]=@luacheck-report.txt" \
-          "$DISCORD_WEBHOOK"
-
-      # Telegram Benachrichtigungen (NEU)
-      - name: Telegram notification - Success
-        if: success() && env.ENVIRONMENT == 'PROD'
+      - name: Notify Telegram
+        if: always() && env.ENVIRONMENT == 'PROD'
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_API_TOKEN }}
           format: markdown
+          # Dynamische Nachricht basierend auf Job-Status
           message: |
-            ✅ *Lua Lint erfolgreich*
+            ${{ job.status == 'success' && '✅ *Lua Lint erfolgreich*' || '❌ *Lua Lint fehlgeschlagen*' }}
             
-            *Repository:* ${{ github.repository }}
+            *Repo:* ${{ github.repository }}
             *Branch:* `${{ github.ref_name }}`
-            *Environment:* `${{ env.ENVIRONMENT }}`
             
             📊 *Ergebnisse:*
-            📁 ${{ steps.parse.outputs.files }} Dateien
-            ⚠️ ${{ steps.parse.outputs.warnings }} Warnungen
-            ❌ ${{ steps.parse.outputs.errors }} Fehler
-
-      - name: Telegram notification - Failure
-        if: failure() && env.ENVIRONMENT == 'PROD'
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_API_TOKEN }}
-          format: markdown
-          message: |
-            ❌ *Lua Lint fehlgeschlagen*
+            📁 ${{ steps.luacheck.outputs.files }} Dateien
+            ⚠️ ${{ steps.luacheck.outputs.warnings }} Warnungen
+            ❌ ${{ steps.luacheck.outputs.errors }} Fehler
             
-            *Repository:* ${{ github.repository }}
-            *Branch:* `${{ github.ref_name }}`
-            *Environment:* `${{ env.ENVIRONMENT }}`
-            
-            📊 *Fehlerübersicht:*
-            📁 ${{ steps.parse.outputs.files }} Dateien
-            ⚠️ ${{ steps.parse.outputs.warnings }} Warnungen
-            ❌ ${{ steps.parse.outputs.errors }} Fehler
-            
-            [🔍 Workflow-Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            [🔍 Logs ansehen](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: luacheck-report-${{ env.ENVIRONMENT }}-${{ github.sha }}
+          name: luacheck-report
           path: luacheck-report.txt
-          retention-days: 90
+          retention-days: 14 # Reduziert auf 14 Tage um Speicher zu sparen

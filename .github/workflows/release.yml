@@ -23,6 +23,7 @@ jobs:
           echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
 
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v2.4.2
         with:
           files: ${{ env.ARCHIVE_NAME }}
@@ -30,3 +31,66 @@ jobs:
             Release ${{ github.ref_name }}
           draft: false
           prerelease: false
+
+      # --- Notifications ---
+
+      - name: Prepare Discord Payload
+        if: always()
+        id: discord_payload
+        run: |
+          STATUS="${{ job.status }}"
+          RELEASE_URL="${{ steps.create_release.outputs.url }}"
+          
+          if [ "$STATUS" == "success" ]; then
+            COLOR=3066993 # Green
+            TITLE="🚀 Release Veröffentlicht: ${{ github.ref_name }}"
+            DESC="Ein neues Release wurde erfolgreich erstellt und hochgeladen."
+            # Falls URL leer ist (Fallback), Repository Link nutzen
+            if [ -z "$RELEASE_URL" ]; then RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"; fi
+          else
+            COLOR=15158332 # Red
+            TITLE="❌ Release fehlgeschlagen"
+            DESC="**⚠️ Fehler:** Der Release-Prozess für ${{ github.ref_name }} ist abgebrochen."
+            RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+          
+          # JSON sicher bauen
+          cat <<EOF > payload.json
+          {
+            "username": "MM Megaphone CI/CD",
+            "avatar_url": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg",
+            "embeds": [{
+              "title": "$TITLE",
+              "description": "$DESC",
+              "color": $COLOR,
+              "fields": [
+                { "name": "📦 Archiv", "value": "\`${{ env.ARCHIVE_NAME }}\`", "inline": true },
+                { "name": "🏷️ Version", "value": "\`${{ github.ref_name }}\`", "inline": true },
+                { "name": "🔗 Link", "value": "[Zum Release]($RELEASE_URL)", "inline": true }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+            }]
+          }
+          EOF
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -F "payload_json=$(cat payload.json)" "$DISCORD_WEBHOOK"
+
+      - name: Notify Telegram
+        if: always()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_API_TOKEN }}
+          format: markdown
+          message: |
+            ${{ job.status == 'success' && '🚀 *Neues Release Veröffentlicht*' || '❌ *Release fehlgeschlagen*' }}
+            
+            *Version:* `${{ github.ref_name }}`
+            *Datei:* `${{ env.ARCHIVE_NAME }}`
+            
+            [🔗 Zum Release](${{ steps.create_release.outputs.url || github.server_url }}/${{ github.repository }}/releases)
