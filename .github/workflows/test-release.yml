@@ -2,13 +2,11 @@ name: Test Release Workflow
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-  # NEU: Erlaubt den Aufruf durch den Release-Workflow
+  # Erlaubt den Aufruf durch andere Workflows (z.B. Release)
   workflow_call:
 
 jobs:
@@ -19,6 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Nutze Python 3.11 mit Pip Caching für schnellere Builds
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -28,6 +27,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml
 
+      # Führe Workflow-Validierung aus
       - name: Run release.yml unit tests
         id: run_tests
         env:
@@ -37,22 +37,25 @@ jobs:
 
       # --- Notifications ---
 
+      # Discord Notification: Erstelle Payload als Datei (verhindert Escaping-Probleme)
       - name: Prepare Discord Payload
         if: always()
         id: discord_payload
         run: |
           STATUS="${{ job.status }}"
           
+          # Setze Farbe und Titel basierend auf Status
           if [ "$STATUS" == "success" ]; then
-            COLOR=3066993
+            COLOR=3066993  # Grün
             TITLE="✅ Workflow Validierung erfolgreich"
             DESC="Das Release-Workflow-Skript wurde erfolgreich validiert."
           else
-            COLOR=15158332
+            COLOR=15158332  # Rot
             TITLE="❌ Workflow Validierung fehlgeschlagen"
             DESC="**⚠️ Fehler:** Die Validierung des Release-Workflows ist gescheitert."
           fi
           
+          # Erstelle JSON Payload in temporärer Datei
           cat <<EOF > payload.json
           {
             "username": "MM Megaphone CI/CD",
@@ -62,8 +65,8 @@ jobs:
               "description": "$DESC",
               "color": $COLOR,
               "fields": [
-                { "name": "🧪 Test", "value": "\`validate_release_workflow.py\`", "inline": true },
-                { "name": "🌿 Branch", "value": "\`${{ github.ref_name }}\`", "inline": true },
+                { "name": "🧪 Test", "value": "\\`validate_release_workflow.py\\`", "inline": true },
+                { "name": "🌿 Branch", "value": "\\`${{ github.ref_name }}\\`", "inline": true },
                 { "name": "🔗 Logs", "value": "[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": true }
               ],
               "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
@@ -76,6 +79,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # Sende Payload aus Datei (verhindert Escaping-Probleme)
           curl -s -F "payload_json=$(cat payload.json)" "$DISCORD_WEBHOOK"
 
       - name: Notify Telegram
