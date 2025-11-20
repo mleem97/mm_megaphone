@@ -1,91 +1,205 @@
 <!--
 Repository: mm_megaphone
 Purpose: Guidance for AI coding agents (Copilot/GitHub agents) to work productively in this repo.
--->
-
-# Copilot / AI Agent Instructions — mm_megaphone
-
-- Purpose: Make safe, discoverable edits to this FiveM resource (client/server).
-
-- Big picture (one-liner): client controls input and voice overrides; server enforces permissions and logs usage; a bridge detects frameworks.
-
-- Core files to read first:
-  - `fxmanifest.lua` — resource manifest, dependency `pma-voice`.
-  - `config/config.lua` — shared `Config` table (defaults, locales, presets).
-  - `bridge/framework.lua` — ESX/QB/ox detection and helper APIs.
-  - `client/main.lua`, `client/submix.lua` — input, `pma-voice` overrides, Mumble submix handling.
-  - `server/main.lua`, `logs/logs.lua` — server-side validation and persistent logging.
-
-- Quick cookbook (copy/paste safe patterns):
-  - Permission checks (client): call `CanUseCarMegaphone()` from bridge.
-  - Voice override (client): `exports['pma-voice']:overrideProximityRange(range, true)` and on stop `exports['pma-voice']:clearProximityOverride()`.
-  - Apply audio effect: create single submix `CreateAudioSubmix(Config.SubmixName)` and `MumbleSetSubmixForServerId(PlayerId(), submix)`; remove with `MumbleSetSubmixForServerId(PlayerId(), -1)`.
-  - Server safety: duplicate any permission check on server before emitting events (see `server/main.lua` for ESX/QB examples).
-
-- Conventions & guarantees:
-  - `Config` is shared and authoritative — update `config/config.lua` when changing defaults.
-  - Notifications use keys in `Config.Notifications` and translations in `Config.Locales`.
-  - Event and export names use `mm_megaphone:*` or exported fn names (e.g., `ActivateMegaphone`).
-
-- Workflows worth knowing:
-  - Local test: copy resource to FiveM server `resources/`, then in server console run `refresh` and `ensure mm_megaphone`.
-  - Release: `.github/workflows/release.yml` packages a tarball and creates a GitHub release; it optionally posts to Discord if `secrets.DISCORD_WEBHOOK_URL` exists.
-
-- Safety notes (must follow):
-  - Never rely only on client checks for permissions. Add server-side validation for any action that changes game state or grants abilities.
-  - Clean up audio submixes — avoid creating per-player submixes without removal.
-
-- Unknowns / ask-before-changing:
-  - CI runner `runs-on: lunexor` and any release/deployment secrets (Discord webhook). Confirm before modifying release workflow or runner settings.
-
-If you want, I can add a short code example showing how to add a new export with server validation and locale entry — say "export-example" and I'll append it.
-<!--
-Repository: mm_megaphone
-Purpose: Guidance for AI coding agents (Copilot/GitHub agents) to work productively in this repo.
 Do not include speculative or non-discoverable practices. Reference only files and patterns present in the tree.
 -->
 
 # Copilot / AI Agent Instructions — mm_megaphone
 
-Summary
-- This repository is a FiveM resource that implements an in-vehicle megaphone system for police roles. Key runtime pieces: `fxmanifest.lua`, `config/config.lua`, `bridge/framework.lua`, client files in `client/`, server files in `server/`, and the logging helper in `logs/`.
+## Overview
 
-Quick architecture
-- Resource manifest: `fxmanifest.lua` declares dependencies and scripts. `pma-voice` is a required dependency (audio/voice integration).
-- Shared config: `config/config.lua` is loaded as a `shared_scripts` entry and provides runtime-config, locales, and presets used by both client and server.
-- Client responsibilities (`client/main.lua`, `client/submix.lua`): keybinds and behavior for activating the megaphone, calling `exports['pma-voice']` to override proximity, applying/removing audio submix via Mumble API, and optional vehicle light effects.
-- Server responsibilities (`server/main.lua`, `logs/logs.lua`): server-side validation (double-check job/permissions), forward events to client (TriggerClientEvent) and persist usage logs to `logs/megaphone.log` using SaveResourceFile/LoadResourceFile.
-- Bridge (`bridge/framework.lua`): detects ESX / QBCore / ox_core or standalone mode, exposes helper functions used by client/server (e.g., `GetPlayerJob()`, `CanUseCarMegaphone()`, `ShowNotification()`). Use these exported helpers rather than re-implementing framework checks.
+**Purpose**: FiveM resource implementing an in-vehicle megaphone system for police roles.
 
-Important files & examples
-- `fxmanifest.lua`: dependency `pma-voice`, shared scripts, client and server script lists.
-- `config/config.lua`: central place for allowed jobs, vehicles, range presets, `Config.Notifications` keys, toggle vs hold behavior, and `Config.UseSubmix`/`Config.SubmixEffects` values.
-- `bridge/framework.lua`: shows how to detect frameworks and call ESX/QB/ox APIs. Example functions to reuse: `GetPlayerJob()`, `RegisterFrameworkEvents()`, `CanUseCarMegaphone()`, `ShowNotification(msgKey)`.
-- `client/main.lua`: core runtime flow. Example: uses `exports['pma-voice']:overrideProximityRange(currentRange, true)` to temporarily increase voice range and `exports['pma-voice']:clearProximityOverride()` to restore.
-- `client/submix.lua`: audio effects. Example: `CreateAudioSubmix(Config.SubmixName)` and `MumbleSetSubmixForServerId(PlayerId(), megaphoneSubmix)`.
-- `server/main.lua`: server validation pattern. Example: before applying submix, checks ESX and QBCore job data server-side and only forwards the event when allowed.
+**Architecture at a glance**: Client controls input and voice overrides; server enforces permissions and logs usage; a bridge detects frameworks (ESX/QBCore/ox_core).
 
-Conventions and idioms
-- Shared `Config` object: read and write at runtime (client updates `Config.MegaphoneRange` for override). Treat `Config` as canonical source for settings.
-- Job/vehicle checks: prefer `bridge` helpers (e.g., `CanUseCarMegaphone()`) and match server-side validations in `server/main.lua` for security.
-- Notifications: message keys live in `Config.Notifications` and `Config.Locales`; always call `ShowNotification(Config.Notifications.<key>)` where practical so messages are localized uniformly.
-- Exports & event names: follow the `mm_megaphone:*` pattern for events and use exported function names like `ActivateMegaphone`, `DeactivateMegaphone`, `ApplyMegaphoneSubmix`, `RemoveMegaphoneSubmix`, `LogMegaphoneUsage` if calling across contexts.
+**Dependencies**: Requires `pma-voice` for voice/audio integration.
 
-Developer workflows (discoverable)
-- Local testing: run a FiveM server and place `mm_megaphone` inside your `resources` folder. Add `ensure pma-voice` and `ensure mm_megaphone` to server config (also referenced in README). Use `refresh` + `ensure mm_megaphone` in server console after changes.
-- Release: `.github/workflows/release.yml` builds a tarball and creates a GitHub release, then posts a Discord notification if `secrets.DISCORD_WEBHOOK_URL` is set. The release workflow expects a tag name or a `workflow_dispatch` `version` input.
-- CI / lint: repo contains `.github/workflows/lua-lint.yml` (lint workflow). Editor configs added to the repo (`.luarc.json`, `.vscode/settings.json`, `.markdownlint.json`) are intended to reduce local editor noise and mirror project conventions.
+---
 
-Patterns to avoid or be careful with
-- Do not rely solely on client-side checks for permissions — server-side validation is present and required (see `server/main.lua`). If adding new permission-requiring features, mirror a server-side validation path.
-- When changing audio/submix behavior, follow the `client/submix.lua` pattern (use Mumble APIs and `MumbleSetSubmixForServerId`). Avoid creating multiple submixes per player without cleaning them up.
+## Core Files to Understand First
 
-Editing & contribution guidance for AI agents
-- When editing behavior that affects gameplay (range, cooldown, visual effects), update `config/config.lua` defaults and `Config.Locales` entries where necessary.
-- If adding public API (exports or events), choose names under `mm_megaphone:*` and ensure there is server-side validation when the action has security implications.
-- Keep changes backwards compatible: `fxmanifest.lua` lists required files and dependencies; avoid removing `dependency 'pma-voice'` unless migrating to a different voice system and update README and release workflow accordingly.
+Read these files in order to grasp the system:
 
-What I could not discover automatically
-- Exact local dev server commands or environment the original author uses (beyond `refresh`/`ensure`) and any credentials/secrets for Discord releases. CI runner `runs-on: lunexor` is present in `release.yml` but not further documented here — assume standard GitHub Actions runners unless you manage a self-hosted runner named `lunexor`.
+1. **`fxmanifest.lua`** — Resource manifest, declares `pma-voice` dependency and all scripts.
+2. **`config/config.lua`** — Shared `Config` table (defaults, locales, presets, notification keys). Loaded on both client and server.
+3. **`bridge/framework.lua`** — Framework detection (ESX/QBCore/ox_core/standalone) and helper APIs for jobs, permissions, notifications.
+4. **`client/main.lua`** — Client runtime: keybinds, activation/deactivation logic, `pma-voice` integration.
+5. **`client/submix.lua`** — Audio effects via Mumble submix API.
+6. **`server/main.lua`** — Server-side validation and event forwarding.
+7. **`logs/logs.lua`** — Persistent logging to `logs/megaphone.log` using `SaveResourceFile`/`LoadResourceFile`.
 
-If anything here looks incorrect or missing, reply with the specifics you'd like included (examples, preferred code style rules, or additional internal commands) and I'll iterate.
+---
+
+## Quick Reference Patterns (Copy-Paste Safe)
+
+### Permission Check (Client)
+```
+-- Use bridge helper
+if CanUseCarMegaphone() then
+    -- proceed
+end
+```
+
+### Voice Range Override (Client)
+```
+-- Activate
+exports['pma-voice']:overrideProximityRange(range, true)
+
+-- Deactivate
+exports['pma-voice']:clearProximityOverride()
+```
+
+### Audio Submix (Client)
+```
+-- Create and apply (do once)
+local submix = CreateAudioSubmix(Config.SubmixName)
+MumbleSetSubmixForServerId(PlayerId(), submix)
+
+-- Remove
+MumbleSetSubmixForServerId(PlayerId(), -1)
+```
+
+### Server-Side Validation Pattern
+```
+-- Always double-check permissions server-side
+RegisterNetEvent('mm_megaphone:someAction', function()
+    local src = source
+    -- Validate job/vehicle here (see server/main.lua for ESX/QB examples)
+    if not isAllowed then
+        return -- reject silently or notify
+    end
+    -- proceed with TriggerClientEvent
+end)
+```
+
+### Notifications
+```
+-- Use Config keys for localization
+ShowNotification(Config.Notifications.no_permission)
+```
+
+---
+
+## Conventions & Idioms
+
+- **Config is authoritative**: `config/config.lua` is the single source of truth. Update defaults, locales, and presets there.
+- **Bridge helpers**: Use functions from `bridge/framework.lua` (`GetPlayerJob()`, `CanUseCarMegaphone()`, `ShowNotification()`) rather than re-implementing framework checks.
+- **Event naming**: Follow `mm_megaphone:*` pattern for events.
+- **Export naming**: Use descriptive names like `ActivateMegaphone`, `DeactivateMegaphone`, `ApplyMegaphoneSubmix`, etc.
+- **Localization**: All user-facing messages use keys from `Config.Notifications` and translations from `Config.Locales`.
+
+---
+
+## Developer Workflows
+
+### Local Testing
+1. Copy resource to FiveM server `resources/` folder.
+2. Ensure `pma-voice` and `mm_megaphone` are in server config.
+3. In server console:
+   ```
+   refresh
+   ensure mm_megaphone
+   ```
+
+### Release Process
+- `.github/workflows/release.yml` packages a tarball and creates a GitHub release.
+- Posts to Discord if `secrets.DISCORD_WEBHOOK_URL` is configured.
+- Triggered by tag creation or manual `workflow_dispatch` with version input.
+
+### CI / Lint
+- `.github/workflows/lua-lint.yml` runs Lua linting.
+- Editor configs: `.luarc.json`, `.vscode/settings.json`, `.markdownlint.json` maintain consistency.
+
+---
+
+## Safety & Security Rules (Must Follow)
+
+1. **Never rely solely on client checks**: Always validate permissions server-side before granting abilities or changing game state.
+2. **Clean up audio submixes**: Avoid creating per-player submixes without removal. Use single submix pattern from `client/submix.lua`.
+3. **Server-side validation required**: For any new permission-requiring feature, mirror the validation pattern in `server/main.lua`.
+4. **Backwards compatibility**: Don't remove `dependency 'pma-voice'` or required files from `fxmanifest.lua` without updating README and release workflow.
+
+---
+
+## Adding New Features (Step-by-Step)
+
+### Example: Adding a New Export with Server Validation
+
+1. **Add config entries** (`config/config.lua`):
+   ```
+   Config.NewFeature = {
+       enabled = true,
+       range = 50.0
+   }
+   Config.Notifications.new_feature_active = "new_feature_active"
+   Config.Locales["de"].new_feature_active = "Neues Feature aktiviert"
+   Config.Locales["en"].new_feature_active = "New feature activated"
+   ```
+
+2. **Client export** (`client/main.lua`):
+   ```
+   exports('ActivateNewFeature', function()
+       if not CanUseCarMegaphone() then
+           ShowNotification(Config.Notifications.no_permission)
+           return false
+       end
+       TriggerServerEvent('mm_megaphone:validateNewFeature')
+       return true
+   end)
+   ```
+
+3. **Server validation** (`server/main.lua`):
+   ```
+   RegisterNetEvent('mm_megaphone:validateNewFeature', function()
+       local src = source
+       -- ESX/QB job check (see existing patterns)
+       if not serverSidePermissionCheck(src) then
+           return
+       end
+       TriggerClientEvent('mm_megaphone:applyNewFeature', src)
+   end)
+   ```
+
+4. **Client event handler** (`client/main.lua`):
+   ```
+   RegisterNetEvent('mm_megaphone:applyNewFeature', function()
+       ShowNotification(Config.Notifications.new_feature_active)
+       -- Apply feature logic
+   end)
+   ```
+
+---
+
+## Known Limitations / Ask Before Changing
+
+- **CI Runner**: `.github/workflows/release.yml` uses `runs-on: lunexor` (potentially self-hosted). Confirm before modifying runner settings.
+- **Discord Webhook**: Release workflow expects `secrets.DISCORD_WEBHOOK_URL`. Don't remove Discord notification logic without confirming.
+- **Framework Detection**: `bridge/framework.lua` auto-detects ESX/QBCore/ox_core. Test thoroughly if modifying detection logic.
+
+---
+
+## File Structure Reference
+
+```
+mm_megaphone/
+├── fxmanifest.lua           # Resource manifest
+├── config/
+│   └── config.lua           # Shared configuration (authoritative)
+├── bridge/
+│   └── framework.lua        # Framework detection & helpers
+├── client/
+│   ├── main.lua            # Core client logic
+│   └── submix.lua          # Audio effects
+├── server/
+│   └── main.lua            # Server validation & events
+├── logs/
+│   └── logs.lua            # Persistent logging
+├── .github/workflows/
+│   ├── release.yml         # Release automation
+│   └── lua-lint.yml        # Linting
+└── README.md               # User documentation
+```
+
+---
+
+**For questions or clarifications**: Reference specific files and line numbers. This document reflects discoverable patterns only—no speculation or assumptions about undocumented behavior.
